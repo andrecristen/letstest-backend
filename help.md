@@ -22,3 +22,10 @@ npx prisma db pull
 ```
 npx prisma generate
 ```
+
+### Exemplo .env:
+
+```
+DATABASE_URL="postgresql://andrecristen:130217@localhost:5432/letstest?schema=public"
+PORT=3000
+```
