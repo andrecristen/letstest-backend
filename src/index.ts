@@ -1,15 +1,23 @@
-import express from 'express';
-import { PrismaClient } from '@prisma/client'
+import * as dotenv from "dotenv";
+import express from "express";
+import cors from "cors";
 
-const prisma = new PrismaClient()
+import { userRouter } from "./user/user.router";
+
+dotenv.config();
+
+if (!process.env.PORT) {
+  process.exit(1);
+}
+
+const PORT: number = parseInt(process.env.PORT as string, 10);
 
 const app = express();
-const port = 3000;
 
-app.get('/', (req, res) => {
-  res.send('Hello, World!');
-});
+app.use(cors());
+app.use(express.json());
+app.use("/api/users", userRouter);
 
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+app.listen(PORT, () => {
+  console.log(`Listening on port ${PORT}`);
 });
