@@ -55,7 +55,7 @@ userRouter.post('/auth', async (req: Request, res: Response) => {
     });
 
     if (user && await crypt.compare(password, user.password)) {
-        res.json({ token: token.sign(user) });
+        res.json({ userId: user.id, token: token.sign(user) });
     } else {
         return res.status(401).json({ error: 'Usuário não encontrado' });
     }
