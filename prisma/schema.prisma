@@ -17,13 +17,14 @@ model User {
 }
 
 model Project {
-  id          Int        @id @default(autoincrement())
+  id          Int           @id @default(autoincrement())
   name        String
   description String
   visibility  Int
   situation   Int
   creatorId   Int
-  creator     User       @relation(fields: [creatorId], references: [id])
+  Environment Environment[]
+  creator     User          @relation(fields: [creatorId], references: [id])
   testCases   TestCase[]
 }
 
@@ -32,4 +33,13 @@ model TestCase {
   data      Json
   projectId Int
   project   Project @relation(fields: [projectId], references: [id])
+}
+
+model Environment {
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String
+  situation   Int
+  projectId   Int
+  project     Project @relation(fields: [projectId], references: [id])
 }
