@@ -34,6 +34,12 @@ export const update = async (id: number, involvement: Partial<Involvement>): Pro
     });
 };
 
+export const remove = async (id: number): Promise<Involvement> => {
+    return db.involvement.delete({
+        where: { id }
+    });
+};
+
 export const find = async (id: number): Promise<Involvement | null> => {
     return db.involvement.findUnique({
         where: {

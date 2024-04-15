@@ -57,10 +57,48 @@ involvementRouter.post("/invite", token.authMiddleware, body("project").isNumeri
 });
 
 involvementRouter.put("/accept/:id", token.authMiddleware, async (request: Request, response: Response) => {
+    return await updateSituation(request, response, InvolvementService.EnvironmentSituation.accepted);
 });
 
 involvementRouter.put("/reject/:id", token.authMiddleware, async (request: Request, response: Response) => {
+    return await updateSituation(request, response, InvolvementService.EnvironmentSituation.rejected);
 });
 
 involvementRouter.delete("/:id", token.authMiddleware, async (request: Request, response: Response) => {
+    const id: number = parseInt(request.params.id);
+    try {
+        //@todo validar se o usuario é o dono ou gerente do projeto
+        const userId = request.user?.id;
+        if (!userId) {
+            return response.status(401).json({ error: "Usuário não autenticado" });
+        }
+        const involvement = await InvolvementService.find(id);
+        if (!involvement) {
+            return response.status(404).json("Convite não encontrado");
+        }
+        const updatedInvolvement = await InvolvementService.remove(id);
+        return response.status(200).json(updatedInvolvement);
+    } catch (error: any) {
+        return response.status(500).json(error.message);
+    }
 });
+
+const updateSituation = async (request: Request, response: Response, situation: number) => {
+    const id: number = parseInt(request.params.id);
+    try {
+        //@todo validar se o usuario é o dono ou gerente do projeto
+        //@todo validar se a situação já não é aceita ou rejeitada
+        const userId = request.user?.id;
+        if (!userId) {
+            return response.status(401).json({ error: "Usuário não autenticado" });
+        }
+        const involvement = await InvolvementService.find(id);
+        if (!involvement) {
+            return response.status(404).json("Convite não encontrado");
+        }
+        const updatedInvolvement = await InvolvementService.update(id, {situation: situation});
+        return response.status(200).json(updatedInvolvement);
+    } catch (error: any) {
+        return response.status(500).json(error.message);
+    }
+}
