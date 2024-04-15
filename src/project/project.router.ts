@@ -13,7 +13,7 @@ projectRouter.get("/me", token.authMiddleware, async (request: Request, response
         if (!userId) {
             return response.status(401).json({ error: "Usuário não autenticado" });
         }
-        const projects = await ProjectService.findBy({creatorId: userId});
+        const projects = await ProjectService.findBy({ creatorId: userId });
         return response.status(200).json(projects);
     } catch (error: any) {
         return response.status(500).json(error.message);
@@ -26,7 +26,7 @@ projectRouter.get("/public", token.authMiddleware, async (request: Request, resp
         if (!userId) {
             return response.status(401).json({ error: "Usuário não autenticado" });
         }
-        const projects = await ProjectService.findBy({visibility: 1});
+        const projects = await ProjectService.findBy({ visibility: ProjectService.ProjectVisibility.public });
         return response.status(200).json(projects);
     } catch (error) {
         console.error("Erro ao buscar projetos públicos:", error);

@@ -9,6 +9,17 @@ export type Project = {
     creatorId: number;
 };
 
+export enum ProjectVisibility {
+    public = 1,
+    private = 2,
+}
+
+export enum ProjectSituationEnum {
+    testing = 1,
+    finalized = 2,
+    canceled = 3,
+}
+
 export const create = async (project: Omit<Project, "id">): Promise<Project> => {
     return db.project.create({
         data: project,
