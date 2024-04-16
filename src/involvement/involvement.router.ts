@@ -7,6 +7,21 @@ import * as InvolvementService from "./involvement.service";
 
 export const involvementRouter = express.Router();
 
+involvementRouter.get("/:projectId/:situation", async (request: Request, response: Response) => {
+    const projectId: number = parseInt(request.params.projectId);
+    const situation: number = parseInt(request.params.situation);
+    try {
+        //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
+        const involvements = await InvolvementService.findBy({projectId, situation});
+        if (involvements) {
+            return response.status(200).json(involvements);
+        }
+        return response.status(404).json("Envolvimentos com projeto não encontrados");
+    } catch (error: any) {
+        return response.status(500).json(error.message);
+    }
+});
+
 involvementRouter.post("/apply", token.authMiddleware, body("project").isNumeric(), async (request: Request, response: Response) => {
     try {
         const errors = validationResult(request);
