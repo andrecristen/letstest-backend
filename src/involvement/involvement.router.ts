@@ -35,8 +35,8 @@ involvementRouter.post("/apply", token.authMiddleware, body("project").isNumeric
         //@todo validar se o usuário já não está nesse projeto
         const projectId = parseInt(request.body.project);
         const involvement = {
-            situation: InvolvementService.EnvironmentSituation.applied,
-            type: InvolvementService.EnvironmenType.tester,
+            situation: InvolvementService.InvolvementSituation.applied,
+            type: InvolvementService.InvolvementType.tester,
             userId: userId,
             projectId: projectId,
         };
@@ -59,7 +59,7 @@ involvementRouter.post("/invite", token.authMiddleware, body("project").isNumeri
         const userId = parseInt(request.body.user);
         const type = parseInt(request.body.type);
         const involvement = {
-            situation: InvolvementService.EnvironmentSituation.invited,
+            situation: InvolvementService.InvolvementSituation.invited,
             type: type,
             userId: userId,
             projectId: projectId,
@@ -72,11 +72,11 @@ involvementRouter.post("/invite", token.authMiddleware, body("project").isNumeri
 });
 
 involvementRouter.put("/accept/:id", token.authMiddleware, async (request: Request, response: Response) => {
-    return await updateSituation(request, response, InvolvementService.EnvironmentSituation.accepted);
+    return await updateSituation(request, response, InvolvementService.InvolvementSituation.accepted);
 });
 
 involvementRouter.put("/reject/:id", token.authMiddleware, async (request: Request, response: Response) => {
-    return await updateSituation(request, response, InvolvementService.EnvironmentSituation.rejected);
+    return await updateSituation(request, response, InvolvementService.InvolvementSituation.rejected);
 });
 
 involvementRouter.delete("/:id", token.authMiddleware, async (request: Request, response: Response) => {

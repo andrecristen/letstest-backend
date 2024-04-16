@@ -8,14 +8,14 @@ export type Involvement = {
     projectId: number;
 };
 
-export enum EnvironmentSituation {
+export enum InvolvementSituation {
     applied = 1,
     invited = 2,
     rejected = 3,
     accepted = 4,
 }
 
-export enum EnvironmenType {
+export enum InvolvementType {
     tester = 1,
     manager = 2,
 }
