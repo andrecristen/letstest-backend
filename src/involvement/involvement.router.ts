@@ -4,6 +4,7 @@ import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 
 import * as InvolvementService from "./involvement.service";
+import * as UserService from "../user/user.service";
 
 export const involvementRouter = express.Router();
 
@@ -47,7 +48,7 @@ involvementRouter.post("/apply", token.authMiddleware, body("project").isNumeric
     }
 });
 
-involvementRouter.post("/invite", token.authMiddleware, body("project").isNumeric(), body("user").isNumeric(), body("type").isNumeric(), async (request: Request, response: Response) => {
+involvementRouter.post("/invite", token.authMiddleware, body("project").isNumeric(), body("email").isString(), body("type").isNumeric(), async (request: Request, response: Response) => {
     try {
         const errors = validationResult(request);
         if (!errors.isEmpty()) {
@@ -55,8 +56,12 @@ involvementRouter.post("/invite", token.authMiddleware, body("project").isNumeri
         }
         //@todo validar se o usuário já não está nesse projeto
         //@todo validar se o usuário que convidou é um gerente ou dono
+        const userFound = await UserService.findOneBy({email: request.body.email});
+        if (!userFound) {
+            return response.status(404).json("Usuário não encontrado para o e-mail fornecido");
+        }
         const projectId = parseInt(request.body.project);
-        const userId = parseInt(request.body.user);
+        const userId = userFound.id;
         const type = parseInt(request.body.type);
         const involvement = {
             situation: InvolvementService.InvolvementSituation.invited,
