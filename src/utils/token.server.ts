@@ -16,7 +16,7 @@ declare global {
 let token: any = {};
 
 token.sign = (user: User) => {
-    return jwt.sign(user, SECRET, { expiresIn: '1h' });
+    return jwt.sign(user, SECRET, { expiresIn: '8h' });
 }
 
 token.authMiddleware = (req: Request, res: Response, next: NextFunction) => {
