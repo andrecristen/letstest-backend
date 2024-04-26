@@ -7,6 +7,7 @@ import { projectRouter } from "./project/project.router";
 import { testCaseRouter } from "./testCase/testCase.router";
 import { environmentRouter } from "./environment/environment.router";
 import { involvementRouter } from "./involvement/involvement.router";
+import { templateRouter } from "./template/template.router";
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ app.use("/api/projects", projectRouter);
 app.use("/api/test-case", testCaseRouter);
 app.use("/api/environment", environmentRouter);
 app.use("/api/involvement", involvementRouter);
+app.use("/api/template", templateRouter);
 
 app.listen(PORT, () => {
   console.log(`Listening on port ${PORT}`);
