@@ -24,11 +24,11 @@ model Project {
   visibility   Int
   situation    Int
   creatorId    Int
-  Environment  Environment[]
-  involvements Involvement[]
   creator      User          @relation(fields: [creatorId], references: [id])
+  environments Environment[]
+  involvements Involvement[]
   testCases    TestCase[]
-  Template     Template[]
+  templates    Template[]
 }
 
 model TestCase {
@@ -58,7 +58,7 @@ model Involvement {
 }
 
 model Template {
-  id          Int     @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   name        String
   description String
   data        Json
