@@ -4,7 +4,6 @@ import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 
 import * as TemplateService from "./template.service";
-import * as UserService from "../user/user.service";
 
 export const templateRouter = express.Router();
 
@@ -21,10 +20,32 @@ templateRouter.get("/defaults/:type", async (request: Request, response: Respons
     }
 });
 
+templateRouter.get("/:projectId/all", async (request: Request, response: Response) => {
+    const projectId: number = parseInt(request.params.projectId);
+    try {
+        //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
+        const templates = await TemplateService.findBy({ projectId });
+        const defaults = await TemplateService.findBy({ projectId: null });
+        const finalTemplates = { ...templates, ...defaults };
+        if (finalTemplates) {
+            return response.status(200).json(finalTemplates);
+        }
+        return response.status(404).json("Templates para projeto não encontrados");
+    } catch (error: any) {
+        return response.status(500).json(error.message);
+    }
+});
+
 templateRouter.get("/:projectId/:type", async (request: Request, response: Response) => {
     const projectId: number = parseInt(request.params.projectId);
     const type: number = parseInt(request.params.type);
     try {
+        if (!projectId) {
+            return response.status(400).json("Parâemtro 'Projeto' não encontrado.");
+        }
+        if (!type) {
+            return response.status(400).json("Parâmetro 'Tipo' não encontrado.");
+        }
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
         const templates = await TemplateService.findBy({ projectId, type });
         if (templates) {
