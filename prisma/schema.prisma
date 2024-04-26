@@ -28,6 +28,7 @@ model Project {
   involvements Involvement[]
   creator      User          @relation(fields: [creatorId], references: [id])
   testCases    TestCase[]
+  Template     Template[]
 }
 
 model TestCase {
@@ -54,4 +55,14 @@ model Involvement {
   projectId Int
   project   Project @relation(fields: [projectId], references: [id])
   user      User    @relation(fields: [userId], references: [id])
+}
+
+model Template {
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String
+  data        Json
+  type        Int
+  projectId   Int?
+  project     Project? @relation(fields: [projectId], references: [id])
 }
