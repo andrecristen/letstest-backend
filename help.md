@@ -27,5 +27,8 @@ npx prisma generate
 
 ```
 DATABASE_URL="postgresql://andrecristen:130217@localhost:5432/letstest?schema=public"
-PORT=3000
+PORT=4000
+bucketEndpoint=""
+bucketRegion=""
+bucketName=""
 ```
