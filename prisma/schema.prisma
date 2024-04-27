@@ -66,3 +66,9 @@ model Template {
   projectId   Int?
   project     Project? @relation(fields: [projectId], references: [id])
 }
+
+model File {
+  id     Int    @id @default(autoincrement())
+  name   String
+  bucket String
+}

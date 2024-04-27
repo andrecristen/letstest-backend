@@ -1,5 +1,4 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { Readable } from 'stream';
 
 const s3 = new S3Client({
     endpoint: process.env.bucketEndpoint,
@@ -10,21 +9,21 @@ const s3 = new S3Client({
     }
 });
 
-var bucketName = process.env.bucketName;
+export const getBucketName = () => {
+    return process.env.bucketName!;
+}
 
-const uploadToS3 = async (keyName: string, body: Buffer) => {
+export const uploadToS3 = async (keyName: string, body: Buffer) => {
     try {
-        console.log(s3.config.credentials());
         await s3.send(new PutObjectCommand({
-            Bucket: bucketName,
+            Bucket: getBucketName(),
             Key: keyName,
-            Body: body
+            Body: body,
+            ACL: 'public-read'
         }));
         return true;
     } catch (err) {
-        console.log("Error: ", err);
+        console.log("Error Upload: ", err);
         return false;
     }
 }
-
-export default uploadToS3;
