@@ -10,25 +10,14 @@ import uploadToS3 from "../utils/s3.server";
 
 export const fileRouter = express.Router();
 
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploads/')
-    },
-    filename: function (req, file, cb) {
-        const extensaoArquivo = file.originalname.split('.')[1];
-        const novoNomeArquivo = require('crypto').randomBytes(64).toString('hex');
-        cb(null, `${novoNomeArquivo}.${extensaoArquivo}`)
-    }
-});
-
-const upload = multer({ storage });
+const storage = multer.memoryStorage()
+const upload = multer({ storage: storage })
 
 fileRouter.post('/upload', upload.single('file'), async (request: any, response: Response) => {
-    console.log(request);
     if (!request.file) {
         return response.status(400).send('Nenhum arquivo carregado');
     }
-    const uploaded = await uploadToS3(request.file.filename, request.file.stream);
+    const uploaded = await uploadToS3(request.file.originalname, request.file.buffer);
     if (uploaded) {
         return response.status(201).json("Upload do arquivo realizado com sucesso");
     } else {
