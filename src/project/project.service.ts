@@ -9,7 +9,7 @@ export type Project = {
     creatorId: number;
 };
 
-export enum ProjectVisibility {
+export enum ProjectVisibilityEnum {
     public = 1,
     private = 2,
 }
