@@ -48,7 +48,7 @@ templateRouter.get("/:projectId/:type", async (request: Request, response: Respo
         }
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
         const templates = await TemplateService.findBy({ projectId, type });
-        const defaults = await TemplateService.findBy({ projectId: null });
+        const defaults = await TemplateService.findBy({ projectId: null, type });
         const finalTemplates = [...templates || [], ...defaults || []];
         if (finalTemplates) {
             return response.status(200).json(finalTemplates);
