@@ -57,5 +57,14 @@ export const findOneBy = async (params: any): Promise<Involvement | null> => {
 export const findBy = async (params: any): Promise<Involvement[] | null> => {
     return db.involvement.findMany({
         where: params,
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                },
+            }
+        }
     });
 };

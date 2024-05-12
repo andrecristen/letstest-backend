@@ -36,14 +36,14 @@ testCaseRouter.get("/:id", async (request: Request, response: Response) => {
     }
 });
 
-testCaseRouter.post("/:projectId", token.authMiddleware, body("data").isObject(), async (request: Request, response: Response) => {
+testCaseRouter.post("/:projectId", token.authMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });
     }
     try {
         const projectId: number = parseInt(request.params.projectId);
-         //@todo adiconar validações para ver se usuário está no projeto (gerente apenas)
+        //@todo adiconar validações para ver se usuário está no projeto (gerente apenas)
         const testCaseData = { ...request.body, projectId: projectId };
         const newTestCase = await TestCaseService.create(testCaseData);
         return response.status(201).json(newTestCase);
@@ -52,8 +52,12 @@ testCaseRouter.post("/:projectId", token.authMiddleware, body("data").isObject()
     }
 });
 
-testCaseRouter.put("/:id", token.authMiddleware, async (request: Request, response: Response) => {
+testCaseRouter.put("/:id", token.authMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
     const id: number = parseInt(request.params.id);
+    const errors = validationResult(request);
+    if (!errors.isEmpty()) {
+        return response.status(400).json({ errors: errors.array() });
+    }
     try {
         const testCase = await TestCaseService.find(id);
         if (!testCase) {
