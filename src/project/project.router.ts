@@ -4,6 +4,7 @@ import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 
 import * as ProjectService from "./project.service";
+import { InvolvementSituation } from "../involvement/involvement.service";
 
 export const projectRouter = express.Router();
 
@@ -14,6 +15,26 @@ projectRouter.get("/me", token.authMiddleware, async (request: Request, response
             return response.status(401).json({ error: "Usuário não autenticado" });
         }
         const projects = await ProjectService.findBy({ creatorId: userId });
+        return response.status(200).json(projects);
+    } catch (error: any) {
+        return response.status(500).json(error.message);
+    }
+});
+
+projectRouter.get("/test", token.authMiddleware, async (request: Request, response: Response) => {
+    try {
+        const userId = parseInt(request.user?.id);
+        if (!userId) {
+            return response.status(401).json({ error: "Usuário não autenticado" });
+        }
+        const projects = await ProjectService.findBy({
+            involvements: {
+                some: {
+                    userId: userId,
+                    situation: InvolvementSituation.accepted,
+                },
+            },
+        });
         return response.status(200).json(projects);
     } catch (error: any) {
         return response.status(500).json(error.message);
