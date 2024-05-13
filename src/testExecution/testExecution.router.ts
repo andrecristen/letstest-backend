@@ -22,7 +22,7 @@ testExecutionRouter.post("/:testCaseId", token.authMiddleware, body("testTime").
             return response.status(404).json({ error: "Caso de Teste não definido" });
         }
         //@todo adiconar validações para ver se usuário está no projeto
-        const testExecutionData = { ...request.body, testCaseId };
+        const testExecutionData = { ...request.body, testCaseId, userId };
         const newTestExecution = await TestExecutionService.create(testExecutionData);
         return response.status(201).json(newTestExecution);
     } catch (error: any) {

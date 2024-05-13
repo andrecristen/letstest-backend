@@ -83,6 +83,6 @@ model TestExecution {
   testTime   Int
   testCaseId Int
   userId     Int
-  testCase   TestCase @relation(fields: [testCaseId], references: [id])
-  user       User     @relation(fields: [userId], references: [id])
+  testCase   TestCase? @relation(fields: [testCaseId], references: [id])
+  user       User?     @relation(fields: [userId], references: [id])
 }
