@@ -11,6 +11,8 @@ export type TestExecution = {
 };
 
 export const create = async (testExecution: Omit<TestExecution, "id">): Promise<TestExecution> => {
+    const currentDate = new Date();
+    testExecution.reported = currentDate;
     return db.testExecution.create({
         data: {
             ...testExecution,
@@ -18,7 +20,6 @@ export const create = async (testExecution: Omit<TestExecution, "id">): Promise<
         },
     });
 };
-
 
 export const update = async (id: number, testExecution: Partial<TestExecution>): Promise<TestExecution> => {
     return db.testExecution.update({
