@@ -15,7 +15,7 @@ model User {
   access        Int
   involvements  Involvement[]
   projects      Project[]
-  testExecution TestExecution[]
+  testExecutions TestExecution[]
 }
 
 model Project {
@@ -38,7 +38,7 @@ model TestCase {
   name          String
   projectId     Int
   project       Project         @relation(fields: [projectId], references: [id])
-  testExecution TestExecution[]
+  testExecutions TestExecution[]
 }
 
 model Environment {
