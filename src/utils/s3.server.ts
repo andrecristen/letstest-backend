@@ -20,7 +20,9 @@ export const uploadToS3 = async (keyName: string, body: Buffer) => {
             Key: keyName,
             Body: body,
             ACL: 'public-read'
-        }));
+        }), {
+            requestTimeout: (2 * 60 * 60 * 1000) //2hrs
+        });
         return true;
     } catch (err) {
         console.log("Error Upload: ", err);
