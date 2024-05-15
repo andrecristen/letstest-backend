@@ -13,12 +13,13 @@ export const getBucketName = () => {
     return process.env.bucketName!;
 }
 
-export const uploadToS3 = async (keyName: string, body: Buffer) => {
+export const uploadToS3 = async (keyName: string, body: Buffer, fileType:string) => {
     try {
         await s3.send(new PutObjectCommand({
             Bucket: getBucketName(),
             Key: keyName,
             Body: body,
+            ContentType: fileType,
             ACL: 'public-read'
         }));
         return true;

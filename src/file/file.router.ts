@@ -17,7 +17,7 @@ fileRouter.post('/upload', token.authMiddleware, upload.single('file'), async (r
     }
     const currentDate = new Date();
     const name = currentDate.getFullYear() + "/" + currentDate.getUTCMonth() + "/" + currentDate.getTime() + "-" + request.file.originalname;
-    const uploaded = await uploadToS3(name, request.file.buffer);
+    const uploaded = await uploadToS3(name, request.file.buffer, request.file.mimetype);
     if (uploaded) {
         const newFile = await FileService.create({name, bucket: getBucketName()});
         return response.status(201).json(newFile);
