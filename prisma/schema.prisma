@@ -12,6 +12,7 @@ model User {
   email         String          @unique
   name          String
   password      String
+  bio           String?
   access        Int
   involvements  Involvement[]
   projects      Project[]
