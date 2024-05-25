@@ -35,6 +35,9 @@ token.authMiddleware = (req: Request, res: Response, next: NextFunction) => {
     try {
         const decoded = jwt.verify(token, SECRET);
         req.user = decoded;
+        if (!req.user?.id) {
+            return res.status(401).json({ error: "Usuário não autenticado" });
+        }
         next();
     } catch (error) {
         return res.status(401).json({ message: 'Token de autenticação inválido' });

@@ -30,9 +30,6 @@ involvementRouter.post("/apply", token.authMiddleware, body("project").isNumeric
             return response.status(400).json({ errors: errors.array() });
         }
         const userId = request.user?.id;
-        if (!userId) {
-            return response.status(401).json({ error: "Usuário não autenticado" });
-        }
         //@todo validar se o usuário já não está nesse projeto
         const projectId = parseInt(request.body.project);
         const involvement = {
@@ -88,10 +85,6 @@ involvementRouter.delete("/:id", token.authMiddleware, async (request: Request, 
     const id: number = parseInt(request.params.id);
     try {
         //@todo validar se o usuario é o dono ou gerente do projeto
-        const userId = request.user?.id;
-        if (!userId) {
-            return response.status(401).json({ error: "Usuário não autenticado" });
-        }
         const involvement = await InvolvementService.find(id);
         if (!involvement) {
             return response.status(404).json("Convite não encontrado");
@@ -108,10 +101,6 @@ const updateSituation = async (request: Request, response: Response, situation: 
     try {
         //@todo validar se o usuario é o dono ou gerente do projeto
         //@todo validar se a situação já não é aceita ou rejeitada
-        const userId = request.user?.id;
-        if (!userId) {
-            return response.status(401).json({ error: "Usuário não autenticado" });
-        }
         const involvement = await InvolvementService.find(id);
         if (!involvement) {
             return response.status(404).json("Convite não encontrado");

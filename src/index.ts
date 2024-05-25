@@ -10,6 +10,7 @@ import { involvementRouter } from "./involvement/involvement.router";
 import { templateRouter } from "./template/template.router";
 import { fileRouter } from "./file/file.router";
 import { testExecutionRouter } from "./testExecution/testExecution.router";
+import { habilityRouter } from "./hability/hability.router";
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.use("/api/involvement", involvementRouter);
 app.use("/api/template", templateRouter);
 app.use("/api/file", fileRouter);
 app.use("/api/test-execution", testExecutionRouter);
+app.use("/api/hability", habilityRouter);
 
 app.listen(PORT, () => {
   console.log(`Listening on port ${PORT}`);

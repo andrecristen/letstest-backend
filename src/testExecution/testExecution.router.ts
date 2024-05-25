@@ -42,9 +42,6 @@ testExecutionRouter.post("/:testCaseId", token.authMiddleware, body("testTime").
     }
     try {
         const userId = request.user?.id;
-        if (!userId) {
-            return response.status(401).json({ error: "Usuário não autenticado" });
-        }
         const testCaseId: number = parseInt(request.params.testCaseId);
         if (!testCaseId) {
             return response.status(404).json({ error: "Caso de Teste não definido" });
