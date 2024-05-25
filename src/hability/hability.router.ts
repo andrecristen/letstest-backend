@@ -22,7 +22,6 @@ habilityRouter.get("/:userId", async (request: Request, response: Response) => {
 
 habilityRouter.post("/:userId", token.authMiddleware, body("value").isString(), body("type").isNumeric(), async (request: Request, response: Response) => {
     try {
-        debugger;
         const errors = validationResult(request);
         if (!errors.isEmpty()) {
             return response.status(400).json({ errors: errors.array() });
@@ -50,8 +49,8 @@ habilityRouter.delete("/:id", token.authMiddleware, async (request: Request, res
         if (hability.userId != userId) {
             return response.status(400).json("Você não pode excluir habilidades deste usuário");
         }
-        const updatedInvolvement = await HabilityService.remove(id);
-        return response.status(200).json(updatedInvolvement);
+        const deletedHability = await HabilityService.remove(id);
+        return response.status(200).json(deletedHability);
     } catch (error: any) {
         return response.status(500).json(error.message);
     }

@@ -18,6 +18,7 @@ model User {
   projects       Project[]
   testExecutions TestExecution[]
   habilities     Hability[]
+  devices        Device[]
 }
 
 model Project {
@@ -93,6 +94,16 @@ model Hability {
   id     Int    @id @default(autoincrement())
   type   Int
   value  String
+  userId Int
+  user   User?  @relation(fields: [userId], references: [id])
+}
+
+model Device {
+  id     Int    @id @default(autoincrement())
+  type   Int
+  brand  String
+  model  String
+  system String
   userId Int
   user   User?  @relation(fields: [userId], references: [id])
 }
