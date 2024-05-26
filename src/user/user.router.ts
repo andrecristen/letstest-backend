@@ -22,8 +22,25 @@ userRouter.post("/register", body("email").isString(), body("name").isString(), 
     } catch (error: any) {
         return response.status(500).json(error.message);
     }
-}
-);
+});
+
+userRouter.put("/:id", token.authMiddleware, body("email").isString(), body("name").isString(), async (request: Request, response: Response) => {
+    const errors = validationResult(request);
+    if (!errors.isEmpty()) {
+        return response.status(400).json({ errors: errors.array() });
+    }
+    const id: number = parseInt(request.params.id);
+    const userId = request.user?.id;
+    if (userId != id) {
+        return response.status(400).json("Você não pode alterar esse usuário");
+    }
+    try {
+        await UserService.update(id, request.body);
+        return response.status(200).json("Usuário alterado com sucesso");
+    } catch (error: any) {
+        return response.status(500).json(error.message);
+    }
+});
 
 userRouter.get("/", async (request: Request, response: Response) => {
     try {

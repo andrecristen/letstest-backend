@@ -8,14 +8,17 @@ datasource db {
 }
 
 model User {
-  id            Int             @id @default(autoincrement())
-  email         String          @unique
-  name          String
-  password      String
-  access        Int
-  involvements  Involvement[]
-  projects      Project[]
+  id             Int             @id @default(autoincrement())
+  email          String          @unique
+  name           String
+  password       String
+  bio            String?
+  access         Int
+  involvements   Involvement[]
+  projects       Project[]
   testExecutions TestExecution[]
+  habilities     Hability[]
+  devices        Device[]
 }
 
 model Project {
@@ -33,11 +36,11 @@ model Project {
 }
 
 model TestCase {
-  id            Int             @id @default(autoincrement())
-  data          Json
-  name          String
-  projectId     Int
-  project       Project         @relation(fields: [projectId], references: [id])
+  id             Int             @id @default(autoincrement())
+  data           Json
+  name           String
+  projectId      Int
+  project        Project         @relation(fields: [projectId], references: [id])
   testExecutions TestExecution[]
 }
 
@@ -77,7 +80,7 @@ model File {
 }
 
 model TestExecution {
-  id         Int      @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   data       Json
   reported   DateTime
   testTime   Int
@@ -85,4 +88,22 @@ model TestExecution {
   userId     Int
   testCase   TestCase? @relation(fields: [testCaseId], references: [id])
   user       User?     @relation(fields: [userId], references: [id])
+}
+
+model Hability {
+  id     Int    @id @default(autoincrement())
+  type   Int
+  value  String
+  userId Int
+  user   User?  @relation(fields: [userId], references: [id])
+}
+
+model Device {
+  id     Int    @id @default(autoincrement())
+  type   Int
+  brand  String
+  model  String
+  system String
+  userId Int
+  user   User?  @relation(fields: [userId], references: [id])
 }

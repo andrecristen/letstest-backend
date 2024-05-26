@@ -4,6 +4,7 @@ export type User = {
     id: number;
     email: string;
     name: string;
+    bio?: string|null;
     password: string;
     access: number;
 };
@@ -27,6 +28,13 @@ export const create = async (user: Omit<User, "id">): Promise<User> => {
     });
 };
 
+export const update = async (id: number, data: Partial<User>): Promise<User> => {
+    return db.user.update({
+        where: { id },
+        data,
+    });
+};
+
 
 export const list = async (): Promise<Omit<User, "password">[]> => {
     return db.user.findMany({
@@ -46,6 +54,7 @@ export const find = async (id: number): Promise<Omit<User, "password"> | null> =
             id: true,
             email: true,
             name: true,
+            bio: true,
             access: true,
         },
         where: {

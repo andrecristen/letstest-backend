@@ -79,10 +79,6 @@ templateRouter.post("/:projectId", token.authMiddleware, body("name").isString()
         return response.status(400).json({ errors: errors.array() });
     }
     try {
-        const userId = request.user?.id;
-        if (!userId) {
-            return response.status(401).json({ error: "Usuário não autenticado" });
-        }
         const projectId: number = parseInt(request.params.projectId);
         if (!projectId) {
             return response.status(404).json({ error: "Projeto não definido" });

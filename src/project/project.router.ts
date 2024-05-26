@@ -11,9 +11,6 @@ export const projectRouter = express.Router();
 projectRouter.get("/me", token.authMiddleware, async (request: Request, response: Response) => {
     try {
         const userId = parseInt(request.user?.id);
-        if (!userId) {
-            return response.status(401).json({ error: "Usuário não autenticado" });
-        }
         const projects = await ProjectService.findBy({ creatorId: userId });
         return response.status(200).json(projects);
     } catch (error: any) {
@@ -24,9 +21,6 @@ projectRouter.get("/me", token.authMiddleware, async (request: Request, response
 projectRouter.get("/test", token.authMiddleware, async (request: Request, response: Response) => {
     try {
         const userId = parseInt(request.user?.id);
-        if (!userId) {
-            return response.status(401).json({ error: "Usuário não autenticado" });
-        }
         const projects = await ProjectService.findBy({
             involvements: {
                 some: {
@@ -44,9 +38,6 @@ projectRouter.get("/test", token.authMiddleware, async (request: Request, respon
 projectRouter.get("/public", token.authMiddleware, async (request: Request, response: Response) => {
     try {
         const userId = parseInt(request.user?.id);
-        if (!userId) {
-            return response.status(401).json({ error: "Usuário não autenticado" });
-        }
         const projects = await ProjectService.findBy({
             visibility: ProjectService.ProjectVisibilityEnum.public,
             situation: ProjectService.ProjectSituationEnum.testing
@@ -78,9 +69,6 @@ projectRouter.post("/", token.authMiddleware, body("name").isString(), body("des
     }
     try {
         const userId = request.user?.id;
-        if (!userId) {
-            return response.status(401).json({ error: "Usuário não autenticado" });
-        }
         const projectData = { ...request.body, creatorId: userId };
         const newProject = await ProjectService.create(projectData);
         return response.status(201).json(newProject);
@@ -93,9 +81,6 @@ projectRouter.put("/:id", token.authMiddleware, async (request: Request, respons
     const id: number = parseInt(request.params.id);
     try {
         const userId = request.user?.id;
-        if (!userId) {
-            return response.status(401).json({ error: "Usuário não autenticado" });
-        }
         const project = await ProjectService.find(id);
         if (!project) {
             return response.status(404).json("Projeto não encontrado");
