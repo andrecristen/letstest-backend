@@ -11,6 +11,8 @@ export enum HabilityType {
     experience = 1,
     certification = 2,
     course = 3,
+    language = 4,
+    softSkill = 5,
 }
 
 export const create = async (hability: Omit<Hability, "id">): Promise<Hability> => {
