@@ -8,6 +8,11 @@ export type Environment = {
     projectId: number;
 };
 
+export enum EnvironmentSituation {
+    operative = 1,
+    dead = 2,
+}
+
 export const create = async (environment: Omit<Environment, "id">): Promise<Environment> => {
     return db.environment.create({
         data: environment,
