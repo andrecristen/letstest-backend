@@ -19,6 +19,7 @@ model User {
   testExecutions TestExecution[]
   habilities     Hability[]
   devices        Device[]
+  reports        Report[]
 }
 
 model Project {
@@ -88,6 +89,7 @@ model TestExecution {
   userId     Int
   testCase   TestCase? @relation(fields: [testCaseId], references: [id])
   user       User?     @relation(fields: [userId], references: [id])
+  reports    Report[]
 }
 
 model Hability {
@@ -106,4 +108,15 @@ model Device {
   system String
   userId Int
   user   User?  @relation(fields: [userId], references: [id])
+}
+
+model Report {
+  id              Int            @id @default(autoincrement())
+  type            Int
+  score           Int
+  commentary      String
+  testExecutionId Int
+  userId          Int
+  testExecution   TestExecution? @relation(fields: [testExecutionId], references: [id])
+  user            User?          @relation(fields: [userId], references: [id])
 }
