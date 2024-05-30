@@ -64,6 +64,21 @@ export const findBy = async (params: any): Promise<Involvement[] | null> => {
                     name: true,
                     email: true,
                 },
+            },
+            project: {
+                select: {
+                    id: true,
+                    description: true,
+                    visibility: true,
+                    situation: true,
+                    creator: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                        },
+                    }
+                }
             }
         }
     });
