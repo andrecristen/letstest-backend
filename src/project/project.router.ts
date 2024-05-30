@@ -10,10 +10,9 @@ export const projectRouter = express.Router();
 
 projectRouter.get("/me", token.authMiddleware, async (request: Request, response: Response) => {
     try {
-        let projectsManager = null;
         const userId = parseInt(request.user?.id);
         //Projetos que sou dono
-        const projects = await ProjectService.findBy({ creatorId: userId });
+        var projects = await ProjectService.findBy({ creatorId: userId });
         //Projetos que sou gerente
         const involvements = await InvolvementService.findBy({
             situation: InvolvementService.InvolvementSituation.accepted,
@@ -22,14 +21,16 @@ projectRouter.get("/me", token.authMiddleware, async (request: Request, response
         });
         if (involvements) {
             const projectIds = involvements.map(involvement => involvement.projectId);
-            projectsManager = await ProjectService.findBy({
+            const projectsManager = await ProjectService.findBy({
                 id: {
                     in: projectIds
                 }
             });
+            if (projectsManager) {
+                projects = projects ? projects.concat(projectsManager) : projectsManager;
+            }
         }
-        const finalProjects = Object({ ...projects, ...projectsManager});
-        return response.status(200).json(finalProjects);
+        return response.status(200).json(projects);
     } catch (error: any) {
         return response.status(500).json(error.message);
     }
