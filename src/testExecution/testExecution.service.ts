@@ -51,11 +51,29 @@ export const find = async (id: number): Promise<TestExecution | null> => {
 export const findOneBy = async (params: any): Promise<TestExecution | null> => {
     return db.testExecution.findUnique({
         where: params,
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                },
+            }
+        }
     });
 };
 
 export const findBy = async (params: any): Promise<TestExecution[] | null> => {
     return db.testExecution.findMany({
         where: params,
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                },
+            }
+        }
     });
 };
