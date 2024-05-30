@@ -4,15 +4,31 @@ import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 
 import * as ProjectService from "./project.service";
-import { InvolvementSituation } from "../involvement/involvement.service";
+import * as InvolvementService from "../involvement/involvement.service";
 
 export const projectRouter = express.Router();
 
 projectRouter.get("/me", token.authMiddleware, async (request: Request, response: Response) => {
     try {
+        let projectsManager = null;
         const userId = parseInt(request.user?.id);
+        //Projetos que sou dono
         const projects = await ProjectService.findBy({ creatorId: userId });
-        return response.status(200).json(projects);
+        //Projetos que sou gerente
+        const involvements = await InvolvementService.findBy({
+            situation: InvolvementService.InvolvementSituation.accepted,
+            type: InvolvementService.InvolvementType.manager,
+            userId,
+        });
+        if (involvements) {
+            const projectIds = involvements.map(involvement => involvement.projectId);
+            projectsManager = await ProjectService.findBy({
+                id: {
+                    in: projectIds
+                }
+            });
+        }
+        return response.status(200).json({ ...projects, ...projectsManager });
     } catch (error: any) {
         return response.status(500).json(error.message);
     }
@@ -25,7 +41,7 @@ projectRouter.get("/test", token.authMiddleware, async (request: Request, respon
             involvements: {
                 some: {
                     userId: userId,
-                    situation: InvolvementSituation.accepted,
+                    situation: InvolvementService.InvolvementSituation.accepted,
                 },
             },
         });
@@ -49,7 +65,7 @@ projectRouter.get("/public", token.authMiddleware, async (request: Request, resp
     }
 });
 
-projectRouter.get("/:id",  token.authMiddleware, async (request: Request, response: Response) => {
+projectRouter.get("/:id", token.authMiddleware, async (request: Request, response: Response) => {
     const id: number = parseInt(request.params.id);
     try {
         const project = await ProjectService.find(id);
