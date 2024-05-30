@@ -21,6 +21,21 @@ testExecutionRouter.get("/test-case/:testCaseId", token.authMiddleware, async (r
     }
 });
 
+testExecutionRouter.get("/test-case/:testCaseId/my", token.authMiddleware, async (request: Request, response: Response) => {
+    //@todo adiconar validações para ver se usuário está no projeto
+    const testCaseId: number = parseInt(request.params.testCaseId);
+    const userId = request.user?.id;
+    try {
+        const testExecutions = await TestExecutionService.findBy({ testCaseId, userId });
+        if (testExecutions) {
+            return response.status(200).json(testExecutions);
+        }
+        return response.status(404).json("Nenhuma execução de testes encontrada");
+    } catch (error: any) {
+        return response.status(500).json(error.message);
+    }
+});
+
 testExecutionRouter.get("/:id", token.authMiddleware, async (request: Request, response: Response) => {
     //@todo adiconar validações para ver se usuário está no projeto
     const id: number = parseInt(request.params.id);
