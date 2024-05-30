@@ -28,7 +28,8 @@ projectRouter.get("/me", token.authMiddleware, async (request: Request, response
                 }
             });
         }
-        return response.status(200).json({ ...projects, ...projectsManager });
+        const finalProjects = Object({ ...projects, ...projectsManager});
+        return response.status(200).json(finalProjects);
     } catch (error: any) {
         return response.status(500).json(error.message);
     }
