@@ -36,6 +36,19 @@ involvementRouter.get("/invitations", token.authMiddleware, async (request: Requ
     }
 });
 
+involvementRouter.get("/applied", token.authMiddleware, async (request: Request, response: Response) => {
+    try {
+        const userId = request.user?.id;
+        const involvements = await InvolvementService.findBy({ situation: InvolvementService.InvolvementSituation.applied, userId });
+        if (involvements) {
+            return response.status(200).json(involvements);
+        }
+        return response.status(404).json("Aplicações não encontrados");
+    } catch (error: any) {
+        return response.status(500).json(error.message);
+    }
+});
+
 involvementRouter.post("/apply", token.authMiddleware, body("project").isNumeric(), async (request: Request, response: Response) => {
     try {
         const errors = validationResult(request);
