@@ -8,16 +8,29 @@ import * as UserService from "../user/user.service";
 
 export const involvementRouter = express.Router();
 
-involvementRouter.get("/:projectId/:situation",  token.authMiddleware, async (request: Request, response: Response) => {
+involvementRouter.get("/:projectId/:situation", token.authMiddleware, async (request: Request, response: Response) => {
     const projectId: number = parseInt(request.params.projectId);
     const situation: number = parseInt(request.params.situation);
     try {
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
-        const involvements = await InvolvementService.findBy({projectId, situation});
+        const involvements = await InvolvementService.findBy({ projectId, situation });
         if (involvements) {
             return response.status(200).json(involvements);
         }
         return response.status(404).json("Envolvimentos com projeto não encontrados");
+    } catch (error: any) {
+        return response.status(500).json(error.message);
+    }
+});
+
+involvementRouter.get("/invitations", token.authMiddleware, async (request: Request, response: Response) => {
+    try {
+        const userId = request.user?.id;
+        const involvements = await InvolvementService.findBy({ situation: InvolvementService.InvolvementSituation.invited, userId });
+        if (involvements) {
+            return response.status(200).json(involvements);
+        }
+        return response.status(404).json("Convites não encontrados");
     } catch (error: any) {
         return response.status(500).json(error.message);
     }
@@ -53,7 +66,7 @@ involvementRouter.post("/invite", token.authMiddleware, body("project").isNumeri
         }
         //@todo validar se o usuário já não está nesse projeto
         //@todo validar se o usuário que convidou é um gerente ou dono
-        const userFound = await UserService.findOneBy({email: request.body.email});
+        const userFound = await UserService.findOneBy({ email: request.body.email });
         if (!userFound) {
             return response.status(404).json("Usuário não encontrado para o e-mail fornecido");
         }
@@ -105,7 +118,7 @@ const updateSituation = async (request: Request, response: Response, situation: 
         if (!involvement) {
             return response.status(404).json("Convite não encontrado");
         }
-        const updatedInvolvement = await InvolvementService.update(id, {situation: situation});
+        const updatedInvolvement = await InvolvementService.update(id, { situation: situation });
         return response.status(200).json(updatedInvolvement);
     } catch (error: any) {
         return response.status(500).json(error.message);
