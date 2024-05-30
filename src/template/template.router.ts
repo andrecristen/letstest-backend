@@ -7,7 +7,7 @@ import * as TemplateService from "./template.service";
 
 export const templateRouter = express.Router();
 
-templateRouter.get("/defaults/:type", async (request: Request, response: Response) => {
+templateRouter.get("/defaults/:type", token.authMiddleware, async (request: Request, response: Response) => {
     const type: number = parseInt(request.params.type);
     try {
         const templates = await TemplateService.findBy({ projectId: null, type });
@@ -20,7 +20,7 @@ templateRouter.get("/defaults/:type", async (request: Request, response: Respons
     }
 });
 
-templateRouter.get("/:projectId/all", async (request: Request, response: Response) => {
+templateRouter.get("/:projectId/all", token.authMiddleware, async (request: Request, response: Response) => {
     const projectId: number = parseInt(request.params.projectId);
     try {
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
@@ -36,7 +36,7 @@ templateRouter.get("/:projectId/all", async (request: Request, response: Respons
     }
 });
 
-templateRouter.get("/:projectId/:type", async (request: Request, response: Response) => {
+templateRouter.get("/:projectId/:type", token.authMiddleware, async (request: Request, response: Response) => {
     const projectId: number = parseInt(request.params.projectId);
     const type: number = parseInt(request.params.type);
     try {
@@ -59,7 +59,7 @@ templateRouter.get("/:projectId/:type", async (request: Request, response: Respo
     }
 });
 
-templateRouter.get("/:templateId", async (request: Request, response: Response) => {
+templateRouter.get("/:templateId", token.authMiddleware, async (request: Request, response: Response) => {
     const id: number = parseInt(request.params.templateId);
     try {
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador) ou se o template é público

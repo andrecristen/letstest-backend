@@ -21,7 +21,7 @@ environmentRouter.get("/project/:projectId", token.authMiddleware, async (reques
     }
 });
 
-environmentRouter.get("/:id", async (request: Request, response: Response) => {
+environmentRouter.get("/:id",  token.authMiddleware, async (request: Request, response: Response) => {
     const id: number = parseInt(request.params.id);
     try {
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)

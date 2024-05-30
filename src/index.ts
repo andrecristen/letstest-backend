@@ -12,6 +12,7 @@ import { fileRouter } from "./file/file.router";
 import { testExecutionRouter } from "./testExecution/testExecution.router";
 import { habilityRouter } from "./hability/hability.router";
 import { deviceRouter } from "./device/device.router";
+import { reportRouter } from "./report/report.router";
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use("/api/file", fileRouter);
 app.use("/api/test-execution", testExecutionRouter);
 app.use("/api/hability", habilityRouter);
 app.use("/api/device", deviceRouter);
+app.use("/api/report", reportRouter);
 
 app.listen(PORT, () => {
   console.log(`Listening on port ${PORT}`);

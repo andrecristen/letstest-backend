@@ -7,7 +7,7 @@ import * as TestExecutionService from "./testExecution.service";
 
 export const testExecutionRouter = express.Router();
 
-testExecutionRouter.get("/test-case/:testCaseId", async (request: Request, response: Response) => {
+testExecutionRouter.get("/test-case/:testCaseId", token.authMiddleware, async (request: Request, response: Response) => {
     //@todo adiconar validações para ver se usuário está no projeto
     const testCaseId: number = parseInt(request.params.testCaseId);
     try {
@@ -21,7 +21,7 @@ testExecutionRouter.get("/test-case/:testCaseId", async (request: Request, respo
     }
 });
 
-testExecutionRouter.get("/:id", async (request: Request, response: Response) => {
+testExecutionRouter.get("/:id", token.authMiddleware, async (request: Request, response: Response) => {
     //@todo adiconar validações para ver se usuário está no projeto
     const id: number = parseInt(request.params.id);
     try {

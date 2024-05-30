@@ -42,7 +42,7 @@ userRouter.put("/:id", token.authMiddleware, body("email").isString(), body("nam
     }
 });
 
-userRouter.get("/", async (request: Request, response: Response) => {
+userRouter.get("/", token.authMiddleware, async (request: Request, response: Response) => {
     try {
         const users = await UserService.list();
         return response.status(200).json(users);
@@ -51,7 +51,7 @@ userRouter.get("/", async (request: Request, response: Response) => {
     }
 });
 
-userRouter.get("/:id", async (request: Request, response: Response) => {
+userRouter.get("/:id", token.authMiddleware, async (request: Request, response: Response) => {
     const id: number = parseInt(request.params.id);
     try {
         const user = await UserService.find(id);

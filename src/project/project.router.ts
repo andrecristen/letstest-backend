@@ -49,7 +49,7 @@ projectRouter.get("/public", token.authMiddleware, async (request: Request, resp
     }
 });
 
-projectRouter.get("/:id", async (request: Request, response: Response) => {
+projectRouter.get("/:id",  token.authMiddleware, async (request: Request, response: Response) => {
     const id: number = parseInt(request.params.id);
     try {
         const project = await ProjectService.find(id);

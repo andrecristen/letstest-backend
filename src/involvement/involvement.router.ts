@@ -8,7 +8,7 @@ import * as UserService from "../user/user.service";
 
 export const involvementRouter = express.Router();
 
-involvementRouter.get("/:projectId/:situation", async (request: Request, response: Response) => {
+involvementRouter.get("/:projectId/:situation",  token.authMiddleware, async (request: Request, response: Response) => {
     const projectId: number = parseInt(request.params.projectId);
     const situation: number = parseInt(request.params.situation);
     try {

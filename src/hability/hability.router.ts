@@ -7,7 +7,7 @@ import * as HabilityService from "./hability.service";
 
 export const habilityRouter = express.Router();
 
-habilityRouter.get("/:userId", async (request: Request, response: Response) => {
+habilityRouter.get("/:userId",  token.authMiddleware, async (request: Request, response: Response) => {
     const userId: number = parseInt(request.params.userId);
     try {
         const habilities = await HabilityService.findBy({ userId });

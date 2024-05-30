@@ -7,7 +7,7 @@ import * as DeviceService from "./device.service";
 
 export const deviceRouter = express.Router();
 
-deviceRouter.get("/:userId", async (request: Request, response: Response) => {
+deviceRouter.get("/:userId",  token.authMiddleware, async (request: Request, response: Response) => {
     const userId: number = parseInt(request.params.userId);
     try {
         const devices = await DeviceService.findBy({ userId });
