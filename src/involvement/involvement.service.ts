@@ -68,6 +68,7 @@ export const findBy = async (params: any): Promise<Involvement[] | null> => {
             project: {
                 select: {
                     id: true,
+                    name: true,
                     description: true,
                     visibility: true,
                     situation: true,
