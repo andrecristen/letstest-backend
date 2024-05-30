@@ -33,17 +33,44 @@ export const find = async (id: number): Promise<Report | null> => {
         where: {
             id: id,
         },
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                },
+            }
+        }
     });
 };
 
 export const findOneBy = async (params: any): Promise<Report | null> => {
     return db.report.findUnique({
         where: params,
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                },
+            }
+        }
     });
 };
 
 export const findBy = async (params: any): Promise<Report[] | null> => {
     return db.report.findMany({
         where: params,
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                },
+            }
+        }
     });
 };
