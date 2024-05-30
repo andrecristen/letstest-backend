@@ -36,6 +36,15 @@ export const find = async (id: number): Promise<TestExecution | null> => {
         where: {
             id: id,
         },
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                },
+            }
+        }
     });
 };
 
