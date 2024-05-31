@@ -6,6 +6,7 @@ export type TestCase = {
     data: JsonValue;
     name: string;
     projectId: number;
+    environmentId?: number | null;
 };
 
 export const create = async (testCase: Omit<TestCase, "id">): Promise<TestCase> => {
@@ -33,17 +34,47 @@ export const find = async (id: number): Promise<TestCase | null> => {
         where: {
             id: id,
         },
+        include: {
+            environment: {
+                select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    situation: true,
+                }
+            }
+        }
     });
 };
 
 export const findOneBy = async (params: any): Promise<TestCase | null> => {
     return db.testCase.findUnique({
         where: params,
+        include: {
+            environment: {
+                select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    situation: true,
+                }
+            }
+        }
     });
 };
 
 export const findBy = async (params: any): Promise<TestCase[] | null> => {
     return db.testCase.findMany({
         where: params,
+        include: {
+            environment: {
+                select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    situation: true,
+                }
+            }
+        }
     });
 };

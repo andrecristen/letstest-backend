@@ -41,17 +41,20 @@ model TestCase {
   data           Json
   name           String
   projectId      Int
+  environmentId  Int?
   project        Project         @relation(fields: [projectId], references: [id])
+  environment    Environment?    @relation(fields: [environmentId], references: [id])
   testExecutions TestExecution[]
 }
 
 model Environment {
-  id          Int     @id @default(autoincrement())
+  id          Int        @id @default(autoincrement())
   name        String
   description String
   situation   Int
   projectId   Int
-  project     Project @relation(fields: [projectId], references: [id])
+  project     Project    @relation(fields: [projectId], references: [id])
+  testCases   TestCase[]
 }
 
 model Involvement {
