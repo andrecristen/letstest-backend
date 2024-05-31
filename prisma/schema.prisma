@@ -87,8 +87,10 @@ model TestExecution {
   testTime   Int
   testCaseId Int
   userId     Int
+  deviceId   Int?
   testCase   TestCase? @relation(fields: [testCaseId], references: [id])
   user       User?     @relation(fields: [userId], references: [id])
+  device     Device?   @relation(fields: [deviceId], references: [id])
   reports    Report[]
 }
 
@@ -101,13 +103,14 @@ model Hability {
 }
 
 model Device {
-  id     Int    @id @default(autoincrement())
-  type   Int
-  brand  String
-  model  String
-  system String
-  userId Int
-  user   User?  @relation(fields: [userId], references: [id])
+  id             Int             @id @default(autoincrement())
+  type           Int
+  brand          String
+  model          String
+  system         String
+  userId         Int
+  user           User?           @relation(fields: [userId], references: [id])
+  testExecutions TestExecution[]
 }
 
 model Report {

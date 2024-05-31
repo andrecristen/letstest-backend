@@ -7,7 +7,7 @@ export type Template = {
     description: string;
     data: JsonValue;
     type: number;
-    projectId: number|null;
+    projectId: number | null;
 };
 
 export enum TemplateType {

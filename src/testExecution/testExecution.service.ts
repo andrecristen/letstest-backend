@@ -8,6 +8,7 @@ export type TestExecution = {
     testTime: number;
     testCaseId: number;
     userId: number;
+    deviceId?: number | null;
 };
 
 export const create = async (testExecution: Omit<TestExecution, "id">): Promise<TestExecution> => {
@@ -43,6 +44,14 @@ export const find = async (id: number): Promise<TestExecution | null> => {
                     name: true,
                     email: true,
                 },
+            },
+            device: {
+                select: {
+                    id: true,
+                    model: true,
+                    system: true,
+                    brand: true,
+                }
             }
         }
     });
@@ -58,6 +67,14 @@ export const findOneBy = async (params: any): Promise<TestExecution | null> => {
                     name: true,
                     email: true,
                 },
+            },
+            device: {
+                select: {
+                    id: true,
+                    model: true,
+                    system: true,
+                    brand: true,
+                }
             }
         }
     });
@@ -73,6 +90,14 @@ export const findBy = async (params: any): Promise<TestExecution[] | null> => {
                     name: true,
                     email: true,
                 },
+            },
+            device: {
+                select: {
+                    id: true,
+                    model: true,
+                    system: true,
+                    brand: true,
+                }
             }
         }
     });
