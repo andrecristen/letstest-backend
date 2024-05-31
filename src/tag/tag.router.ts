@@ -87,16 +87,21 @@ tagRouter.put("/:id", token.authMiddleware, body("name").isString(), body("situa
         const tagValues = request.body.tagValues || [];
         delete body.tagValues;
         const updatedTag = await TagService.update(id, body);
-        processEditTagValues(tagValues);
+        processEditTagValues(tagValues, updatedTag.id);
         return response.status(200).json(updatedTag);
     } catch (error: any) {
         return response.status(500).json(error.message);
     }
 });
 
-async function processEditTagValues(tagValues: TagValue[]) {
+async function processEditTagValues(tagValues: TagValue[],updatedTagId: number) {
     for (const tagValue of tagValues) {
-        await TagValueService.update(tagValue.id, tagValue);
+        if (tagValue.id) {
+            await TagValueService.update(tagValue.id, tagValue);
+        } else {
+            tagValue.tagId = updatedTagId;
+            await TagValueService.create(tagValue);
+        }
     }
 }
 
