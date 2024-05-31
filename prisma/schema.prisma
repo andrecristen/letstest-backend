@@ -34,6 +34,8 @@ model Project {
   involvements Involvement[]
   testCases    TestCase[]
   templates    Template[]
+  tags         Tag[]
+  tagValues    TagValue[]
 }
 
 model TestCase {
@@ -125,4 +127,26 @@ model Report {
   userId          Int
   testExecution   TestExecution? @relation(fields: [testExecutionId], references: [id])
   user            User?          @relation(fields: [userId], references: [id])
+}
+
+model Tag {
+  id         Int        @id @default(autoincrement())
+  name       String
+  situation  Int
+  commentary String?
+  projectId  Int?
+  project    Project?   @relation(fields: [projectId], references: [id])
+  tagValues  TagValue[]
+}
+
+model TagValue {
+  id         Int      @id @default(autoincrement())
+  name       String
+  situation  Int
+  commentary String?
+  data       Json?
+  projectId  Int?
+  tagId      Int
+  project    Project? @relation(fields: [projectId], references: [id])
+  tag        Tag      @relation(fields: [tagId], references: [id])
 }
