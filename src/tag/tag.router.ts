@@ -5,6 +5,7 @@ import { token } from "../utils/token.server";
 
 import * as TagService from "./tag.service";
 import * as TagValueService from "./tagValue.service";
+import { Tag, TagValue } from "@prisma/client";
 
 export const tagRouter = express.Router();
 
@@ -49,13 +50,26 @@ tagRouter.post("/:projectId", token.authMiddleware, body("name").isString(), asy
             return response.status(404).json({ error: "Projeto não definido" });
         }
         //@todo adiconar validações para ver se usuário está no projeto (gerente apenas)
-        const tagData = { ...request.body, situation: TagService.TagSituationEnum.use, projectId: projectId };
+        const body = request.body
+        const tagValues = request.body.tagValues || [];
+        delete body.tagValues;
+        const tagData = { ...body, situation: TagService.TagSituationEnum.use, projectId: projectId };
         const newTag = await TagService.create(tagData);
+        if (newTag) {
+            processAddTagValues(tagValues, newTag.id);
+        }
         return response.status(201).json(newTag);
     } catch (error: any) {
         return response.status(500).json(error.message);
     }
 });
+
+async function processAddTagValues(tagValues: TagValue[], newTagId: number) {
+    for (const tagValue of tagValues) {
+        tagValue.tagId = newTagId
+        await TagValueService.create(tagValue);
+    }
+}
 
 tagRouter.put("/:id", token.authMiddleware, body("name").isString(), body("situation").isNumeric(), async (request: Request, response: Response) => {
     const id: number = parseInt(request.params.id);
@@ -69,12 +83,22 @@ tagRouter.put("/:id", token.authMiddleware, body("name").isString(), body("situa
             return response.status(404).json("Tag não encontrada");
         }
         //@todo adiconar validações para ver se usuário está no projeto (gerente apenas)
-        const updatedTag = await TagService.update(id, request.body);
+        const body = request.body
+        const tagValues = request.body.tagValues || [];
+        delete body.tagValues;
+        const updatedTag = await TagService.update(id, body);
+        processEditTagValues(tagValues);
         return response.status(200).json(updatedTag);
     } catch (error: any) {
         return response.status(500).json(error.message);
     }
 });
+
+async function processEditTagValues(tagValues: TagValue[]) {
+    for (const tagValue of tagValues) {
+        await TagValueService.update(tagValue.id, tagValue);
+    }
+}
 
 tagRouter.post("/value/:tagId", token.authMiddleware, body("name").isString(), async (request: Request, response: Response) => {
     const errors = validationResult(request);
