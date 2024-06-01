@@ -23,27 +23,39 @@ model User {
 }
 
 model Project {
-  id           Int           @id @default(autoincrement())
+  id           Int            @id @default(autoincrement())
   name         String
   description  String
   visibility   Int
   situation    Int
   creatorId    Int
-  creator      User          @relation(fields: [creatorId], references: [id])
+  creator      User           @relation(fields: [creatorId], references: [id])
   environments Environment[]
   involvements Involvement[]
   testCases    TestCase[]
   templates    Template[]
   tags         Tag[]
   tagValues    TagValue[]
+  TestScenario TestScenario[]
+}
+
+model TestScenario {
+  id        Int        @id @default(autoincrement())
+  data      Json
+  name      String
+  projectId Int
+  project   Project    @relation(fields: [projectId], references: [id])
+  testCases TestCase[]
 }
 
 model TestCase {
   id             Int             @id @default(autoincrement())
   data           Json
   name           String
+  testScenarioId Int?
   projectId      Int
   environmentId  Int?
+  testScenario   TestScenario?   @relation(fields: [testScenarioId], references: [id])
   project        Project         @relation(fields: [projectId], references: [id])
   environment    Environment?    @relation(fields: [environmentId], references: [id])
   testExecutions TestExecution[]
