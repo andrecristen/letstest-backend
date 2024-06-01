@@ -48,6 +48,7 @@ export const find = async (id: number): Promise<TestCase | null> => {
                 select: {
                     id: true,
                     name: true,
+                    data: true,
                 }
             }
         }
@@ -70,6 +71,7 @@ export const findOneBy = async (params: any): Promise<TestCase | null> => {
                 select: {
                     id: true,
                     name: true,
+                    data: true,
                 }
             }
         }
@@ -92,6 +94,7 @@ export const findBy = async (params: any): Promise<TestCase[] | null> => {
                 select: {
                     id: true,
                     name: true,
+                    data: true,
                 }
             }
         }
