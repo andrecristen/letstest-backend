@@ -120,3 +120,16 @@ projectRouter.put("/:id", token.authMiddleware, async (request: Request, respons
         return response.status(500).json(error.message);
     }
 });
+
+projectRouter.get("/:id/overview", token.authMiddleware, async (request: Request, response: Response) => {
+    const id: number = parseInt(request.params.id);
+    try {
+        const project = await ProjectService.findOverview(id);
+        if (project) {
+            return response.status(200).json(project);
+        }
+        return response.status(404).json("Projeto não encontrado");
+    } catch (error: any) {
+        return response.status(500).json(error.message);
+    }
+});

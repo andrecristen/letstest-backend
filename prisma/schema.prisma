@@ -23,20 +23,20 @@ model User {
 }
 
 model Project {
-  id           Int            @id @default(autoincrement())
-  name         String
-  description  String
-  visibility   Int
-  situation    Int
-  creatorId    Int
-  creator      User           @relation(fields: [creatorId], references: [id])
-  environments Environment[]
-  involvements Involvement[]
-  testCases    TestCase[]
-  templates    Template[]
-  tags         Tag[]
-  tagValues    TagValue[]
-  TestScenario TestScenario[]
+  id            Int            @id @default(autoincrement())
+  name          String
+  description   String
+  visibility    Int
+  situation     Int
+  creatorId     Int
+  creator       User           @relation(fields: [creatorId], references: [id])
+  environments  Environment[]
+  involvements  Involvement[]
+  testCases     TestCase[]
+  templates     Template[]
+  tags          Tag[]
+  tagValues     TagValue[]
+  testScenarios TestScenario[]
 }
 
 model TestScenario {
