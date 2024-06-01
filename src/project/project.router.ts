@@ -58,7 +58,12 @@ projectRouter.get("/public", token.authMiddleware, async (request: Request, resp
         const userId = parseInt(request.user?.id);
         const projects = await ProjectService.findBy({
             visibility: ProjectService.ProjectVisibilityEnum.public,
-            situation: ProjectService.ProjectSituationEnum.testing
+            situation: ProjectService.ProjectSituationEnum.testing,
+            involvements: {
+                none: {
+                    userId: userId,
+                }
+            }
         });
         return response.status(200).json(projects);
     } catch (error) {
