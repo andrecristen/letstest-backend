@@ -7,6 +7,7 @@ export type TestCase = {
     name: string;
     projectId: number;
     environmentId?: number | null;
+    testScenarioId?: number | null;
 };
 
 export const create = async (testCase: Omit<TestCase, "id">): Promise<TestCase> => {
@@ -42,6 +43,12 @@ export const find = async (id: number): Promise<TestCase | null> => {
                     description: true,
                     situation: true,
                 }
+            },
+            testScenario: {
+                select: {
+                    id: true,
+                    name: true,
+                }
             }
         }
     });
@@ -58,6 +65,12 @@ export const findOneBy = async (params: any): Promise<TestCase | null> => {
                     description: true,
                     situation: true,
                 }
+            },
+            testScenario: {
+                select: {
+                    id: true,
+                    name: true,
+                }
             }
         }
     });
@@ -73,6 +86,12 @@ export const findBy = async (params: any): Promise<TestCase[] | null> => {
                     name: true,
                     description: true,
                     situation: true,
+                }
+            },
+            testScenario: {
+                select: {
+                    id: true,
+                    name: true,
                 }
             }
         }
