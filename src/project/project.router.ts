@@ -63,6 +63,9 @@ projectRouter.get("/public", token.authMiddleware, async (request: Request, resp
                 none: {
                     userId: userId,
                 }
+            },
+            creatorId: {
+                not: userId
             }
         });
         return response.status(200).json(projects);
