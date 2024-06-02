@@ -58,7 +58,15 @@ projectRouter.get("/public", token.authMiddleware, async (request: Request, resp
         const userId = parseInt(request.user?.id);
         const projects = await ProjectService.findBy({
             visibility: ProjectService.ProjectVisibilityEnum.public,
-            situation: ProjectService.ProjectSituationEnum.testing
+            situation: ProjectService.ProjectSituationEnum.testing,
+            involvements: {
+                none: {
+                    userId: userId,
+                }
+            },
+            creatorId: {
+                not: userId
+            }
         });
         return response.status(200).json(projects);
     } catch (error) {
@@ -108,6 +116,19 @@ projectRouter.put("/:id", token.authMiddleware, async (request: Request, respons
         }
         const updatedProject = await ProjectService.update(id, request.body);
         return response.status(200).json(updatedProject);
+    } catch (error: any) {
+        return response.status(500).json(error.message);
+    }
+});
+
+projectRouter.get("/:id/overview", token.authMiddleware, async (request: Request, response: Response) => {
+    const id: number = parseInt(request.params.id);
+    try {
+        const project = await ProjectService.findOverview(id);
+        if (project) {
+            return response.status(200).json(project);
+        }
+        return response.status(404).json("Projeto não encontrado");
     } catch (error: any) {
         return response.status(500).json(error.message);
     }

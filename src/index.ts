@@ -14,6 +14,7 @@ import { habilityRouter } from "./hability/hability.router";
 import { deviceRouter } from "./device/device.router";
 import { reportRouter } from "./report/report.router";
 import { tagRouter } from "./tag/tag.router";
+import { testScenarioRouter } from "./testScenario/testScenario.router";
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ app.use(express.json());
 app.use("/api/users", userRouter);
 app.use("/api/projects", projectRouter);
 app.use("/api/test-case", testCaseRouter);
+app.use("/api/test-scenario", testScenarioRouter);
 app.use("/api/environment", environmentRouter);
 app.use("/api/involvement", involvementRouter);
 app.use("/api/template", templateRouter);

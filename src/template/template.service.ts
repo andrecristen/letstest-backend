@@ -11,8 +11,9 @@ export type Template = {
 };
 
 export enum TemplateType {
-    definition = 1,
-    execution = 2,
+    definitionTestCase = 1,
+    executionTestCase = 2,
+    executionTestScenario = 3,
 }
 
 export const create = async (template: Omit<Template, "id">): Promise<Template> => {
