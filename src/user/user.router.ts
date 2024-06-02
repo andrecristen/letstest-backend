@@ -18,7 +18,7 @@ userRouter.post("/register", body("email").isString(), body("name").isString(), 
         const user = request.body;
         user.password = await crypt.encrypt(user.password);
         const newuser = await UserService.create(user);
-        return response.status(200).json("Usuário cadastrado com sucesso");
+        return response.status(200).json(newuser);
     } catch (error: any) {
         return response.status(500).json(error.message);
     }

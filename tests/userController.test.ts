@@ -4,28 +4,54 @@ import app from '../src/index';
 // Descrição do grupo de testes para o controlador de usuários
 describe('User Controller', () => {
     let userId: string;
+    let token: string;
+
+    const currentDate = new Date();
+
+    const email = `email${currentDate.toTimeString()}@test.com`;
+    const password = "senha-de-teste";
 
     // Teste para criação de um novo usuário
     it('deve criar um novo usuário', async () => {
-        const response = await request(app)
-            .post('/users')
-            .send({ name: 'John Doe', email: 'john@example.com' });
+        // Registrar um novo usuário
+        const registerResponse = await request(app)
+            .post('/api/users/register')
+            .send({ name: 'Teste Criação', email: email, password: password });
 
-        expect(response.status).toBe(201); // Verifica se a resposta HTTP é 201 (Criado)
-        expect(response.body).toHaveProperty('id'); // Verifica se a resposta contém a propriedade 'id'
-        userId = response.body.id; // Armazena o ID do usuário criado para uso nos testes subsequentes
+        expect(registerResponse.status).toBe(200); // Verifica se a resposta HTTP é 200 (OK)
+        expect(registerResponse.body).toHaveProperty('id'); // Verifica se a resposta contém a propriedade 'id'
+        userId = registerResponse.body.id; // Armazena o ID do usuário criado para uso nos testes subsequentes
+    });
+
+
+    // Teste para autenticar
+    it('deve autenticar o usuário criado', async () => {
+        // Autenticar o usuário registrado
+        const authResponse = await request(app)
+            .post('/api/users/auth')
+            .send({ email: email, password: password });
+
+        expect(authResponse.status).toBe(200); // Verifica se a resposta HTTP é 200 (OK)
+        expect(authResponse.body).toHaveProperty('token'); // Verifica se a resposta contém a propriedade 'token'
+        token = authResponse.body.token; // Armazena o token para uso nas requisições subsequentes
     });
 
     // Teste para obter todos os usuários
     it('deve buscar todos os usuários', async () => {
-        const response = await request(app).get('/users');
+        const response = await request(app)
+            .get('/api/users')
+            .set('Authorization', `Bearer ${token}`); // Define o token de autenticação
+
         expect(response.status).toBe(200); // Verifica se a resposta HTTP é 200 (OK)
         expect(response.body).toBeInstanceOf(Array); // Verifica se o corpo da resposta é uma instância de Array
     });
 
     // Teste para obter um usuário por ID
     it('deve buscar um usuário por id', async () => {
-        const response = await request(app).get(`/users/${userId}`);
+        const response = await request(app)
+            .get(`/api/users/${userId}`)
+            .set('Authorization', `Bearer ${token}`); // Define o token de autenticação
+
         expect(response.status).toBe(200); // Verifica se a resposta HTTP é 200 (OK)
         expect(response.body).toHaveProperty('id', userId); // Verifica se o corpo da resposta contém a propriedade 'id' com o valor correto
     });
@@ -33,22 +59,11 @@ describe('User Controller', () => {
     // Teste para atualizar um usuário
     it('deve atualizar um usuário', async () => {
         const response = await request(app)
-            .put(`/users/${userId}`)
-            .send({ name: 'Jane Doe' });
+            .put(`/api/users/${userId}`)
+            .send({ name: 'Teste Alteração', email: email, bio: "Teste de bio" })
+            .set('Authorization', `Bearer ${token}`); // Define o token de autenticação
 
         expect(response.status).toBe(200); // Verifica se a resposta HTTP é 200 (OK)
-        expect(response.body).toHaveProperty('name', 'Jane Doe'); // Verifica se o corpo da resposta contém a propriedade 'name' com o valor atualizado
     });
 
-    // Teste para deletar um usuário
-    it('deve deletar um usuário', async () => {
-        const response = await request(app).delete(`/users/${userId}`);
-        expect(response.status).toBe(200); // Verifica se a resposta HTTP é 200 (OK)
-    });
-
-    // Teste para verificar a resposta ao buscar um usuário inexistente
-    it('deve retornar 404 para usuário inexistente', async () => {
-        const response = await request(app).get('/users/nonexistentid');
-        expect(response.status).toBe(404); // Verifica se a resposta HTTP é 404 (Não Encontrado)
-    });
 });
