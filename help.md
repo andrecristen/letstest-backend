@@ -32,3 +32,15 @@ bucketEndpoint=""
 bucketRegion=""
 bucketName=""
 ```
+
+### Rodar teste
+
+```
+NODE_ENV=test npm test
+```
+
+### Obter coverage 
+
+```
+npx jest --coverage   
+```

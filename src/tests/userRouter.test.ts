@@ -1,5 +1,5 @@
 import request from 'supertest';
-import app from '../src/index';
+import app from '../index';
 
 // Descrição do grupo de testes para o controlador de usuários
 describe('User Controller', () => {
