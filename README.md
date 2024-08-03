@@ -11,3 +11,7 @@ O Letstest é uma plataforma para gestão e execução de testes automatizados. 
 - **Node.js**: Ambiente de execução JavaScript server-side.
 - **Express**: Framework web para Node.js.
 - **Jest**: Framework de testes para JavaScript.
+
+## Demonstração
+
+[Youtube](https://youtu.be/QxlsbTeRnuY)
