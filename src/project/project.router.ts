@@ -2,6 +2,7 @@ import express from "express";
 import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
+import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 
 import * as ProjectService from "./project.service";
 import * as InvolvementService from "../involvement/involvement.service";
@@ -11,26 +12,36 @@ export const projectRouter = express.Router();
 projectRouter.get("/me", token.authMiddleware, async (request: Request, response: Response) => {
     try {
         const userId = parseInt(request.user?.id);
-        //Projetos que sou dono
-        var projects = await ProjectService.findBy({ creatorId: userId });
-        //Projetos que sou gerente
+        const pagination = getPaginationParams(request.query);
+        const search = typeof request.query.search === "string" ? request.query.search.trim() : "";
+        const situation = request.query.situation ? parseInt(String(request.query.situation), 10) : null;
+        const visibility = request.query.visibility ? parseInt(String(request.query.visibility), 10) : null;
         const involvements = await InvolvementService.findBy({
             situation: InvolvementService.InvolvementSituation.accepted,
             type: InvolvementService.InvolvementType.manager,
             userId,
         });
-        if (involvements) {
-            const projectIds = involvements.map(involvement => involvement.projectId);
-            const projectsManager = await ProjectService.findBy({
-                id: {
-                    in: projectIds
-                }
-            });
-            if (projectsManager) {
-                projects = projects ? projects.concat(projectsManager) : projectsManager;
-            }
+        const projectIds = involvements?.map((involvement) => involvement.projectId) ?? [];
+        const baseWhere = projectIds.length
+            ? { OR: [{ creatorId: userId }, { id: { in: projectIds } }] }
+            : { creatorId: userId };
+        const filterWhere: any = {};
+        if (search) {
+            filterWhere.name = { contains: search, mode: "insensitive" };
         }
-        return response.status(200).json(projects);
+        if (situation && !Number.isNaN(situation)) {
+            filterWhere.situation = situation;
+        }
+        if (visibility && !Number.isNaN(visibility)) {
+            filterWhere.visibility = visibility;
+        }
+        const where = Object.keys(filterWhere).length
+            ? { AND: [baseWhere, filterWhere] }
+            : baseWhere;
+        const result = await ProjectService.findByPaged(where, pagination);
+        return response.status(200).json(
+            buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
+        );
     } catch (error: any) {
         return response.status(500).json(error.message);
     }
@@ -39,15 +50,18 @@ projectRouter.get("/me", token.authMiddleware, async (request: Request, response
 projectRouter.get("/test", token.authMiddleware, async (request: Request, response: Response) => {
     try {
         const userId = parseInt(request.user?.id);
-        const projects = await ProjectService.findBy({
+        const pagination = getPaginationParams(request.query);
+        const result = await ProjectService.findByPaged({
             involvements: {
                 some: {
                     userId: userId,
                     situation: InvolvementService.InvolvementSituation.accepted,
                 },
             },
-        });
-        return response.status(200).json(projects);
+        }, pagination);
+        return response.status(200).json(
+            buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
+        );
     } catch (error: any) {
         return response.status(500).json(error.message);
     }
@@ -56,7 +70,8 @@ projectRouter.get("/test", token.authMiddleware, async (request: Request, respon
 projectRouter.get("/public", token.authMiddleware, async (request: Request, response: Response) => {
     try {
         const userId = parseInt(request.user?.id);
-        const projects = await ProjectService.findBy({
+        const pagination = getPaginationParams(request.query);
+        const result = await ProjectService.findByPaged({
             visibility: ProjectService.ProjectVisibilityEnum.public,
             situation: ProjectService.ProjectSituationEnum.testing,
             involvements: {
@@ -67,8 +82,10 @@ projectRouter.get("/public", token.authMiddleware, async (request: Request, resp
             creatorId: {
                 not: userId
             }
-        });
-        return response.status(200).json(projects);
+        }, pagination);
+        return response.status(200).json(
+            buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
+        );
     } catch (error) {
         console.error("Erro ao buscar projetos públicos:", error);
         return response.status(500).json({ message: "Erro interno do servidor" });

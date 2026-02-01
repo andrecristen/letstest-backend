@@ -2,6 +2,7 @@ import express from "express";
 import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
+import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 
 import * as HabilityService from "./hability.service";
 
@@ -10,11 +11,11 @@ export const habilityRouter = express.Router();
 habilityRouter.get("/:userId",  token.authMiddleware, async (request: Request, response: Response) => {
     const userId: number = parseInt(request.params.userId);
     try {
-        const habilities = await HabilityService.findBy({ userId });
-        if (habilities) {
-            return response.status(200).json(habilities);
-        }
-        return response.status(404).json("Habilidades não encontradas");
+        const pagination = getPaginationParams(request.query);
+        const result = await HabilityService.findByPaged({ userId }, pagination);
+        return response.status(200).json(
+            buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
+        );
     } catch (error: any) {
         return response.status(500).json(error.message);
     }

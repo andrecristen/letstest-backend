@@ -2,6 +2,7 @@ import express from "express";
 import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
+import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 
 import * as TemplateService from "./template.service";
 
@@ -10,11 +11,11 @@ export const templateRouter = express.Router();
 templateRouter.get("/defaults/:type", token.authMiddleware, async (request: Request, response: Response) => {
     const type: number = parseInt(request.params.type);
     try {
-        const templates = await TemplateService.findBy({ projectId: null, type });
-        if (templates) {
-            return response.status(200).json(templates);
-        }
-        return response.status(404).json("Templates padrões não encontrados");
+        const pagination = getPaginationParams(request.query);
+        const result = await TemplateService.findByPaged({ projectId: null, type }, pagination);
+        return response.status(200).json(
+            buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
+        );
     } catch (error: any) {
         return response.status(500).json(error.message);
     }
@@ -24,13 +25,13 @@ templateRouter.get("/:projectId/all", token.authMiddleware, async (request: Requ
     const projectId: number = parseInt(request.params.projectId);
     try {
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
-        const templates = await TemplateService.findBy({ projectId });
-        const defaults = await TemplateService.findBy({ projectId: null });
-        const finalTemplates = [...templates || [], ...defaults || []];
-        if (finalTemplates) {
-            return response.status(200).json(finalTemplates);
-        }
-        return response.status(404).json("Templates para projeto não encontrados");
+        const pagination = getPaginationParams(request.query);
+        const result = await TemplateService.findByPaged({
+            OR: [{ projectId }, { projectId: null }],
+        }, pagination);
+        return response.status(200).json(
+            buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
+        );
     } catch (error: any) {
         return response.status(500).json(error.message);
     }
@@ -47,13 +48,13 @@ templateRouter.get("/:projectId/:type", token.authMiddleware, async (request: Re
             return response.status(400).json("Parâmetro 'Tipo' não encontrado.");
         }
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
-        const templates = await TemplateService.findBy({ projectId, type });
-        const defaults = await TemplateService.findBy({ projectId: null, type });
-        const finalTemplates = [...templates || [], ...defaults || []];
-        if (finalTemplates) {
-            return response.status(200).json(finalTemplates);
-        }
-        return response.status(404).json("Templates para projeto não encontrados");
+        const pagination = getPaginationParams(request.query);
+        const result = await TemplateService.findByPaged({
+            OR: [{ projectId, type }, { projectId: null, type }],
+        }, pagination);
+        return response.status(200).json(
+            buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
+        );
     } catch (error: any) {
         return response.status(500).json(error.message);
     }

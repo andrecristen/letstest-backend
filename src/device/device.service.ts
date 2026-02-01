@@ -1,4 +1,5 @@
 import { db } from "../utils/db.server";
+import { PaginationParams } from "../utils/pagination";
 
 export type Device = {
     id: number;
@@ -41,4 +42,20 @@ export const findBy = async (params: any): Promise<Device[] | null> => {
     return db.device.findMany({
         where: params
     });
+};
+
+export const findByPaged = async (
+    params: any,
+    pagination: PaginationParams
+): Promise<{ data: Device[]; total: number }> => {
+    const [total, data] = await Promise.all([
+        db.device.count({ where: params }),
+        db.device.findMany({
+            where: params,
+            skip: pagination.skip,
+            take: pagination.take,
+            orderBy: { id: "desc" },
+        }),
+    ]);
+    return { data, total };
 };

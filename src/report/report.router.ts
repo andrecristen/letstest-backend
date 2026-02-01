@@ -2,6 +2,7 @@ import express from "express";
 import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
+import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 
 import * as ReportService from "./report.service";
 
@@ -11,11 +12,11 @@ reportRouter.get("/test-execution/:testExecutionId", token.authMiddleware, async
     //@todo adiconar validações para ver se usuário está no projeto
     const testExecutionId: number = parseInt(request.params.testExecutionId);
     try {
-        const testExecutions = await ReportService.findBy({ testExecutionId });
-        if (testExecutions) {
-            return response.status(200).json(testExecutions);
-        }
-        return response.status(404).json("Nenhuma avaliação da execução de testes encontrada");
+        const pagination = getPaginationParams(request.query);
+        const result = await ReportService.findByPaged({ testExecutionId }, pagination);
+        return response.status(200).json(
+            buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
+        );
     } catch (error: any) {
         return response.status(500).json(error.message);
     }

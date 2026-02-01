@@ -1,4 +1,5 @@
 import { db } from "../utils/db.server";
+import { PaginationParams } from "../utils/pagination";
 
 export type Environment = {
     id: number;
@@ -45,4 +46,20 @@ export const findBy = async (params: any): Promise<Environment[] | null> => {
     return db.environment.findMany({
         where: params,
     });
+};
+
+export const findByPaged = async (
+    params: any,
+    pagination: PaginationParams
+): Promise<{ data: Environment[]; total: number }> => {
+    const [total, data] = await Promise.all([
+        db.environment.count({ where: params }),
+        db.environment.findMany({
+            where: params,
+            skip: pagination.skip,
+            take: pagination.take,
+            orderBy: { id: "desc" },
+        }),
+    ]);
+    return { data, total };
 };

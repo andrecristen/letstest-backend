@@ -2,6 +2,7 @@ import express from "express";
 import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
+import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 
 import * as TagService from "./tag.service";
 import * as TagValueService from "./tagValue.service";
@@ -13,13 +14,13 @@ tagRouter.get("/project/:projectId", token.authMiddleware, async (request: Reque
     const projectId: number = parseInt(request.params.projectId);
     try {
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
-        const tags = await TagService.findBy({ projectId });
-        const defaults = await TagService.findBy({ projectId: null });
-        const finalTags = [...tags || [], ...defaults || []];
-        if (finalTags) {
-            return response.status(200).json(finalTags);
-        }
-        return response.status(404).json("Tags para projeto não encontradas");
+        const pagination = getPaginationParams(request.query);
+        const result = await TagService.findByPaged({
+            OR: [{ projectId }, { projectId: null }],
+        }, pagination);
+        return response.status(200).json(
+            buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
+        );
     } catch (error: any) {
         return response.status(500).json(error.message);
     }

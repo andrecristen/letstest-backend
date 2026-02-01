@@ -2,6 +2,7 @@ import express from "express";
 import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
+import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 
 import * as InvolvementService from "./involvement.service";
 import * as UserService from "../user/user.service";
@@ -13,11 +14,26 @@ involvementRouter.get("/:projectId/:situation", token.authMiddleware, async (req
     const situation: number = parseInt(request.params.situation);
     try {
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
-        const involvements = await InvolvementService.findBy({ projectId, situation });
-        if (involvements) {
-            return response.status(200).json(involvements);
+        const pagination = getPaginationParams(request.query);
+        const search = typeof request.query.search === "string" ? request.query.search.trim() : "";
+        const where: any = { projectId, situation };
+        if (search) {
+            where.AND = [
+                { projectId, situation },
+                {
+                    user: {
+                        OR: [
+                            { name: { contains: search, mode: "insensitive" } },
+                            { email: { contains: search, mode: "insensitive" } },
+                        ],
+                    },
+                },
+            ];
         }
-        return response.status(404).json("Envolvimentos com projeto não encontrados");
+        const result = await InvolvementService.findByPaged(where, pagination);
+        return response.status(200).json(
+            buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
+        );
     } catch (error: any) {
         return response.status(500).json(error.message);
     }
@@ -26,11 +42,14 @@ involvementRouter.get("/:projectId/:situation", token.authMiddleware, async (req
 involvementRouter.get("/invitations", token.authMiddleware, async (request: Request, response: Response) => {
     try {
         const userId = request.user?.id;
-        const involvements = await InvolvementService.findBy({ situation: InvolvementService.InvolvementSituation.invited, userId });
-        if (involvements) {
-            return response.status(200).json(involvements);
-        }
-        return response.status(404).json("Convites não encontrados");
+        const pagination = getPaginationParams(request.query);
+        const result = await InvolvementService.findByPaged(
+            { situation: InvolvementService.InvolvementSituation.invited, userId },
+            pagination
+        );
+        return response.status(200).json(
+            buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
+        );
     } catch (error: any) {
         return response.status(500).json(error.message);
     }
@@ -39,11 +58,14 @@ involvementRouter.get("/invitations", token.authMiddleware, async (request: Requ
 involvementRouter.get("/applied", token.authMiddleware, async (request: Request, response: Response) => {
     try {
         const userId = request.user?.id;
-        const involvements = await InvolvementService.findBy({ situation: InvolvementService.InvolvementSituation.applied, userId });
-        if (involvements) {
-            return response.status(200).json(involvements);
-        }
-        return response.status(404).json("Aplicações não encontrados");
+        const pagination = getPaginationParams(request.query);
+        const result = await InvolvementService.findByPaged(
+            { situation: InvolvementService.InvolvementSituation.applied, userId },
+            pagination
+        );
+        return response.status(200).json(
+            buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
+        );
     } catch (error: any) {
         return response.status(500).json(error.message);
     }

@@ -1,4 +1,5 @@
 import { db } from "../utils/db.server";
+import { PaginationParams } from "../utils/pagination";
 import { JsonValue } from "@prisma/client/runtime/library";
 
 export type TestScenario = {
@@ -46,4 +47,20 @@ export const findBy = async (params: any): Promise<TestScenario[] | null> => {
     return db.testScenario.findMany({
         where: params,
     });
+};
+
+export const findByPaged = async (
+    params: any,
+    pagination: PaginationParams
+): Promise<{ data: TestScenario[]; total: number }> => {
+    const [total, data] = await Promise.all([
+        db.testScenario.count({ where: params }),
+        db.testScenario.findMany({
+            where: params,
+            skip: pagination.skip,
+            take: pagination.take,
+            orderBy: { id: "desc" },
+        }),
+    ]);
+    return { data, total };
 };

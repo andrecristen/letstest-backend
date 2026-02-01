@@ -2,6 +2,7 @@ import express from "express";
 import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
+import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 
 import * as DeviceService from "./device.service";
 
@@ -10,11 +11,11 @@ export const deviceRouter = express.Router();
 deviceRouter.get("/:userId",  token.authMiddleware, async (request: Request, response: Response) => {
     const userId: number = parseInt(request.params.userId);
     try {
-        const devices = await DeviceService.findBy({ userId });
-        if (devices) {
-            return response.status(200).json(devices);
-        }
-        return response.status(404).json("Dispositvos não encontrados");
+        const pagination = getPaginationParams(request.query);
+        const result = await DeviceService.findByPaged({ userId }, pagination);
+        return response.status(200).json(
+            buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
+        );
     } catch (error: any) {
         return response.status(500).json(error.message);
     }

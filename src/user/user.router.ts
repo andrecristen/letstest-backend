@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { crypt } from "../utils/crypt.server";
 import { token } from "../utils/token.server";
+import { getPaginationParams } from "../utils/pagination";
 
 
 import * as UserService from "./user.service";
@@ -46,6 +47,39 @@ userRouter.get("/", token.authMiddleware, async (request: Request, response: Res
     try {
         const users = await UserService.list();
         return response.status(200).json(users);
+    } catch (error: any) {
+        return response.status(500).json(error.message);
+    }
+});
+
+userRouter.get("/search", token.authMiddleware, async (request: Request, response: Response) => {
+    try {
+        const pagination = getPaginationParams(request.query);
+        const search = typeof request.query.search === "string" ? request.query.search.trim() : "";
+        const hability = typeof request.query.hability === "string" ? request.query.hability.trim() : "";
+        const habilityTypeValue = parseInt(String(request.query.habilityType ?? ""), 10);
+        const deviceTypeValue = parseInt(String(request.query.deviceType ?? ""), 10);
+        const deviceBrand = typeof request.query.deviceBrand === "string" ? request.query.deviceBrand.trim() : "";
+        const deviceModel = typeof request.query.deviceModel === "string" ? request.query.deviceModel.trim() : "";
+        const deviceSystem = typeof request.query.deviceSystem === "string" ? request.query.deviceSystem.trim() : "";
+        const excludeProjectIdValue = parseInt(String(request.query.excludeProjectId ?? ""), 10);
+        const excludeInvolvementTypeValue = parseInt(String(request.query.excludeInvolvementType ?? ""), 10);
+
+        const filters = {
+            search: search || undefined,
+            hability: hability || undefined,
+            habilityType: Number.isFinite(habilityTypeValue) ? habilityTypeValue : undefined,
+            deviceType: Number.isFinite(deviceTypeValue) ? deviceTypeValue : undefined,
+            deviceBrand: deviceBrand || undefined,
+            deviceModel: deviceModel || undefined,
+            deviceSystem: deviceSystem || undefined,
+            excludeProjectId: Number.isFinite(excludeProjectIdValue) ? excludeProjectIdValue : undefined,
+            excludeInvolvementType: Number.isFinite(excludeInvolvementTypeValue) ? excludeInvolvementTypeValue : undefined,
+            excludeUserId: request.user?.id,
+        };
+
+        const result = await UserService.findByPaged(filters, pagination);
+        return response.status(200).json(result);
     } catch (error: any) {
         return response.status(500).json(error.message);
     }

@@ -1,4 +1,5 @@
 import { db } from "../utils/db.server";
+import { PaginationParams } from "../utils/pagination";
 
 export type Tag = {
     id: number;
@@ -77,4 +78,31 @@ export const findBy = async (params: any): Promise<Tag[] | null> => {
             }
         }
     });
+};
+
+export const findByPaged = async (
+    params: any,
+    pagination: PaginationParams
+): Promise<{ data: Tag[]; total: number }> => {
+    const [total, data] = await Promise.all([
+        db.tag.count({ where: params }),
+        db.tag.findMany({
+            where: params,
+            skip: pagination.skip,
+            take: pagination.take,
+            orderBy: { id: "desc" },
+            include: {
+                tagValues: {
+                    select: {
+                        id: true,
+                        name: true,
+                        situation: true,
+                        commentary: true,
+                        data: true,
+                    },
+                }
+            }
+        }),
+    ]);
+    return { data, total };
 };

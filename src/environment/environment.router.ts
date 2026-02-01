@@ -2,6 +2,7 @@ import express from "express";
 import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
+import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 
 import * as EnvironmentCaseService from "./environment.service";
 
@@ -14,8 +15,11 @@ environmentRouter.get("/project/:projectId", token.authMiddleware, async (reques
         if (!projectId) {
             return response.status(401).json({ error: "Projeto não identificado" });
         }
-        const testCases = await EnvironmentCaseService.findBy({ projectId: projectId });
-        return response.status(200).json(testCases);
+        const pagination = getPaginationParams(request.query);
+        const result = await EnvironmentCaseService.findByPaged({ projectId: projectId }, pagination);
+        return response.status(200).json(
+            buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
+        );
     } catch (error: any) {
         return response.status(500).json(error.message);
     }

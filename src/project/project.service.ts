@@ -1,4 +1,5 @@
 import { db } from "../utils/db.server";
+import { PaginationParams } from "../utils/pagination";
 
 export type Project = {
     id: number;
@@ -155,4 +156,29 @@ export const findBy = async (params: any): Promise<Project[] | null> => {
             }
         }
     });
+};
+
+export const findByPaged = async (
+    params: any,
+    pagination: PaginationParams
+): Promise<{ data: Project[]; total: number }> => {
+    const [total, data] = await Promise.all([
+        db.project.count({ where: params }),
+        db.project.findMany({
+            where: params,
+            skip: pagination.skip,
+            take: pagination.take,
+            orderBy: { id: "desc" },
+            include: {
+                creator: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                }
+            }
+        }),
+    ]);
+    return { data, total };
 };

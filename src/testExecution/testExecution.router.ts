@@ -2,6 +2,7 @@ import express from "express";
 import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
+import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 
 import * as TestExecutionService from "./testExecution.service";
 
@@ -11,11 +12,11 @@ testExecutionRouter.get("/test-case/:testCaseId", token.authMiddleware, async (r
     //@todo adiconar validações para ver se usuário está no projeto
     const testCaseId: number = parseInt(request.params.testCaseId);
     try {
-        const testExecutions = await TestExecutionService.findBy({ testCaseId });
-        if (testExecutions) {
-            return response.status(200).json(testExecutions);
-        }
-        return response.status(404).json("Nenhuma execução de testes encontrada");
+        const pagination = getPaginationParams(request.query);
+        const result = await TestExecutionService.findByPaged({ testCaseId }, pagination);
+        return response.status(200).json(
+            buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
+        );
     } catch (error: any) {
         return response.status(500).json(error.message);
     }
@@ -26,11 +27,11 @@ testExecutionRouter.get("/test-case/:testCaseId/my", token.authMiddleware, async
     const testCaseId: number = parseInt(request.params.testCaseId);
     const userId = request.user?.id;
     try {
-        const testExecutions = await TestExecutionService.findBy({ testCaseId, userId });
-        if (testExecutions) {
-            return response.status(200).json(testExecutions);
-        }
-        return response.status(404).json("Nenhuma execução de testes encontrada");
+        const pagination = getPaginationParams(request.query);
+        const result = await TestExecutionService.findByPaged({ testCaseId, userId }, pagination);
+        return response.status(200).json(
+            buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
+        );
     } catch (error: any) {
         return response.status(500).json(error.message);
     }

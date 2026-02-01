@@ -1,4 +1,5 @@
 import { db } from "../utils/db.server";
+import { PaginationParams } from "../utils/pagination";
 
 export type Hability = {
     id: number;
@@ -39,4 +40,20 @@ export const findBy = async (params: any): Promise<Hability[] | null> => {
     return db.hability.findMany({
         where: params
     });
+};
+
+export const findByPaged = async (
+    params: any,
+    pagination: PaginationParams
+): Promise<{ data: Hability[]; total: number }> => {
+    const [total, data] = await Promise.all([
+        db.hability.count({ where: params }),
+        db.hability.findMany({
+            where: params,
+            skip: pagination.skip,
+            take: pagination.take,
+            orderBy: { id: "desc" },
+        }),
+    ]);
+    return { data, total };
 };

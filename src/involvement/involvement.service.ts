@@ -1,4 +1,5 @@
 import { db } from "../utils/db.server";
+import { PaginationParams } from "../utils/pagination";
 
 export type Involvement = {
     id: number;
@@ -83,4 +84,45 @@ export const findBy = async (params: any): Promise<Involvement[] | null> => {
             }
         }
     });
+};
+
+export const findByPaged = async (
+    params: any,
+    pagination: PaginationParams
+): Promise<{ data: Involvement[]; total: number }> => {
+    const [total, data] = await Promise.all([
+        db.involvement.count({ where: params }),
+        db.involvement.findMany({
+            where: params,
+            skip: pagination.skip,
+            take: pagination.take,
+            orderBy: { id: "desc" },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+                project: {
+                    select: {
+                        id: true,
+                        name: true,
+                        description: true,
+                        visibility: true,
+                        situation: true,
+                        creator: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                            },
+                        },
+                    }
+                }
+            }
+        }),
+    ]);
+    return { data, total };
 };
