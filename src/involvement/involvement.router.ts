@@ -88,6 +88,7 @@ involvementRouter.post("/apply", token.authMiddleware, body("project").isNumeric
             projectId: projectId,
         };
         const newProject = await InvolvementService.create(involvement);
+        await NotificationService.notifyInviteReceived(newProject.id);
         return response.status(201).json(newProject);
     } catch (error: any) {
         return response.status(500).json(error.message);

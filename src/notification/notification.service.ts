@@ -10,6 +10,7 @@ export enum NotificationType {
   InviteAccepted = 2,
   DeadlineExceeded = 3,
   DeadlineWarning = 4,
+  InviteReceived = 5,
 }
 
 type CreateNotificationParams = {
@@ -193,6 +194,35 @@ export const notifyInviteAccepted = async (involvementId: number) => {
     userIds: recipients,
     projectId: involvement.projectId,
     metadata: { involvementId, projectId: involvement.projectId, userId: involvement.user?.id },
+    sendEmail: settings.notifyEmail,
+    sendInApp: settings.notifyInApp,
+  });
+};
+
+export const notifyInviteReceived = async (involvementId: number) => {
+  const involvement = await db.involvement.findUnique({
+    where: { id: involvementId },
+    include: {
+      user: { select: { id: true, name: true } },
+      project: { select: { id: true, name: true } },
+    },
+  });
+
+  if (!involvement?.projectId || !involvement.user?.id) return null;
+
+  const settings = await NotificationSettingsService.getOrCreateByProject(involvement.projectId);
+  if (!settings.enableInviteReceived) return null;
+
+  const title = "Novo convite";
+  const message = `Voce recebeu um convite para participar do projeto "${involvement.project?.name ?? ""}".`;
+
+  return createNotification({
+    type: NotificationType.InviteReceived,
+    title,
+    message,
+    userIds: [involvement.user.id],
+    projectId: involvement.projectId,
+    metadata: { involvementId, projectId: involvement.projectId, userId: involvement.user.id },
     sendEmail: settings.notifyEmail,
     sendInApp: settings.notifyInApp,
   });

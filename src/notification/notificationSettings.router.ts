@@ -22,6 +22,7 @@ notificationSettingsRouter.put(
   token.authMiddleware,
   body("enableExecutionRejected").optional().isBoolean(),
   body("enableInviteAccepted").optional().isBoolean(),
+  body("enableInviteReceived").optional().isBoolean(),
   body("enableDeadlineExceeded").optional().isBoolean(),
   body("enableDeadlineWarning").optional().isBoolean(),
   body("deadlineWarningDays").optional().isNumeric(),

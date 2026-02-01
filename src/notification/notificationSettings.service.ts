@@ -3,6 +3,7 @@ import { db } from "../utils/db.server";
 export type NotificationSettingsInput = {
   enableExecutionRejected?: boolean;
   enableInviteAccepted?: boolean;
+  enableInviteReceived?: boolean;
   enableDeadlineExceeded?: boolean;
   enableDeadlineWarning?: boolean;
   deadlineWarningDays?: number;
