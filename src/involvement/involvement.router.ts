@@ -72,6 +72,23 @@ involvementRouter.get("/applied", token.authMiddleware, async (request: Request,
     }
 });
 
+involvementRouter.get("/project/:projectId/testers", token.authMiddleware, async (request: Request, response: Response) => {
+    try {
+        const projectId: number = parseInt(request.params.projectId);
+        if (!projectId) {
+            return response.status(400).json("Projeto não identificado");
+        }
+        const testers = await InvolvementService.findBy({
+            projectId,
+            type: InvolvementService.InvolvementType.tester,
+            situation: InvolvementService.InvolvementSituation.accepted,
+        });
+        return response.status(200).json(testers ?? []);
+    } catch (error: any) {
+        return response.status(500).json(error.message);
+    }
+});
+
 involvementRouter.post("/apply", token.authMiddleware, body("project").isNumeric(), async (request: Request, response: Response) => {
     try {
         const errors = validationResult(request);

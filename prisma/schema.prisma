@@ -21,6 +21,8 @@ model User {
   devices        Device[]
   reports        Report[]
   notifications  NotificationRecipient[]
+  testCaseAssignments TestCaseAssignment[] @relation("TestCaseAssignee")
+  testCaseAssignmentsMade TestCaseAssignment[] @relation("TestCaseAssigner")
 }
 
 model Project {
@@ -30,6 +32,9 @@ model Project {
   visibility    Int
   situation     Int
   dueDate       DateTime?
+  approvalEnabled Boolean @default(false)
+  approvalScenarioEnabled Boolean @default(false)
+  approvalTestCaseEnabled Boolean @default(false)
   creatorId     Int
   creator       User           @relation(fields: [creatorId], references: [id])
   environments  Environment[]
@@ -47,6 +52,11 @@ model TestScenario {
   data      Json
   name      String
   projectId Int
+  approvalStatus Int @default(1)
+  reviewedAt DateTime?
+  reviewedById Int?
+  approvedAt DateTime?
+  approvedById Int?
   project   Project    @relation(fields: [projectId], references: [id])
   testCases TestCase[]
 }
@@ -59,10 +69,33 @@ model TestCase {
   projectId      Int
   environmentId  Int?
   dueDate        DateTime?
+  approvalStatus Int @default(1)
+  reviewedAt DateTime?
+  reviewedById Int?
+  approvedAt DateTime?
+  approvedById Int?
   testScenario   TestScenario?   @relation(fields: [testScenarioId], references: [id])
   project        Project         @relation(fields: [projectId], references: [id])
   environment    Environment?    @relation(fields: [environmentId], references: [id])
   testExecutions TestExecution[]
+  assignments    TestCaseAssignment[]
+}
+
+model TestCaseAssignment {
+  id           Int      @id @default(autoincrement())
+  testCaseId   Int
+  userId       Int
+  assignedById Int?
+  assignedAt   DateTime @default(now())
+  startedAt    DateTime?
+  lastPausedAt DateTime?
+  totalPausedSeconds Int @default(0)
+  finishedAt   DateTime?
+  testCase     TestCase @relation(fields: [testCaseId], references: [id])
+  user         User     @relation("TestCaseAssignee", fields: [userId], references: [id])
+  assignedBy   User?    @relation("TestCaseAssigner", fields: [assignedById], references: [id])
+
+  @@unique([testCaseId, userId])
 }
 
 model Environment {

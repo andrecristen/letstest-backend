@@ -3,8 +3,10 @@ import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
+import { db } from "../utils/db.server";
 
 import * as TestExecutionService from "./testExecution.service";
+import * as ProjectService from "../project/project.service";
 
 export const testExecutionRouter = express.Router();
 
@@ -63,6 +65,20 @@ testExecutionRouter.post("/:testCaseId", token.authMiddleware, body("testTime").
             return response.status(404).json({ error: "Caso de Teste não definido" });
         }
         //@todo adiconar validações para ver se usuário está no projeto
+        const testCase = await db.testCase.findUnique({
+            where: { id: testCaseId },
+            select: { id: true, projectId: true, approvalStatus: true, testScenario: { select: { approvalStatus: true } } },
+        });
+        if (!testCase?.projectId) {
+            return response.status(404).json({ error: "Caso de Teste não encontrado" });
+        }
+        const project = await ProjectService.find(testCase.projectId);
+        if (project?.approvalEnabled && project.approvalTestCaseEnabled && testCase.approvalStatus !== 3) {
+            return response.status(409).json("Caso de Teste ainda não aprovado");
+        }
+        if (project?.approvalEnabled && project.approvalScenarioEnabled && testCase.testScenario?.approvalStatus && testCase.testScenario.approvalStatus !== 3) {
+            return response.status(409).json("Cenario de Teste ainda não aprovado");
+        }
         const testExecutionData = { ...request.body, testCaseId, userId };
         const newTestExecution = await TestExecutionService.create(testExecutionData);
         return response.status(201).json(newTestExecution);

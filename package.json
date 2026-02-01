@@ -7,7 +7,8 @@
     "test": "jest",
     "dev": "nodemon src/index.ts",
     "vercel-build": "prisma generate && npx prisma migrate deploy",
-    "cron:local": "ts-node src/cron.ts"
+    "cron:local": "ts-node src/cron.ts",
+    "seed": "ts-node prisma/seed.ts"
   },
   "keywords": [],
   "author": "",

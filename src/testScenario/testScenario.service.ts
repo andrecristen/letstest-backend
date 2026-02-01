@@ -7,6 +7,11 @@ export type TestScenario = {
     data: JsonValue;
     name: string;
     projectId: number;
+    approvalStatus?: number;
+    reviewedAt?: Date | null;
+    reviewedById?: number | null;
+    approvedAt?: Date | null;
+    approvedById?: number | null;
 };
 
 export const create = async (testScenario: Omit<TestScenario, "id">): Promise<TestScenario> => {

@@ -8,6 +8,9 @@ export type Project = {
     visibility: number;
     situation: number;
     dueDate?: Date | null;
+    approvalEnabled?: boolean;
+    approvalScenarioEnabled?: boolean;
+    approvalTestCaseEnabled?: boolean;
     creatorId: number;
 };
 
@@ -63,6 +66,14 @@ export const findOverview = async (id: number): Promise<Project | null> => {
                     id: true,
                     name: true,
                     email: true,
+                },
+            },
+            involvements: {
+                select: {
+                    id: true,
+                    situation: true,
+                    type: true,
+                    userId: true,
                 },
             },
             testScenarios: {
