@@ -22,5 +22,11 @@
           "OPTIONS"
         ]
       }
+    ],
+    "crons": [
+      {
+        "path": "/api/notifications/deadline/run",
+        "schedule": "0 9 * * *"
+      }
     ]
   }

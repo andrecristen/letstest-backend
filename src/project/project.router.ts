@@ -113,6 +113,9 @@ projectRouter.post("/", token.authMiddleware, body("name").isString(), body("des
     try {
         const userId = request.user?.id;
         const projectData = { ...request.body, creatorId: userId };
+        if (projectData.dueDate) {
+            projectData.dueDate = new Date(projectData.dueDate);
+        }
         const newProject = await ProjectService.create(projectData);
         return response.status(201).json(newProject);
     } catch (error: any) {
@@ -131,7 +134,11 @@ projectRouter.put("/:id", token.authMiddleware, async (request: Request, respons
         if (project.creatorId !== userId) {
             return response.status(403).json({ error: "Você não tem permissão para alterar este projeto" });
         }
-        const updatedProject = await ProjectService.update(id, request.body);
+        const updatePayload: any = { ...request.body };
+        if (updatePayload.dueDate) {
+            updatePayload.dueDate = new Date(updatePayload.dueDate);
+        }
+        const updatedProject = await ProjectService.update(id, updatePayload);
         return response.status(200).json(updatedProject);
     } catch (error: any) {
         return response.status(500).json(error.message);

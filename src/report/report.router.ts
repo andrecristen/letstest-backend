@@ -5,6 +5,7 @@ import { token } from "../utils/token.server";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 
 import * as ReportService from "./report.service";
+import * as NotificationService from "../notification/notification.service";
 
 export const reportRouter = express.Router();
 
@@ -52,6 +53,9 @@ reportRouter.post("/:testExecutionId", token.authMiddleware, body("type").isNume
         //@todo adiconar validações para ver se usuário está no projeto
         const testExecutionData = { ...request.body, testExecutionId, userId };
         const newReport = await ReportService.create(testExecutionData);
+        if (newReport.type === ReportService.ReportType.rejected) {
+            await NotificationService.notifyExecutionRejected(testExecutionId, newReport.id);
+        }
         return response.status(201).json(newReport);
     } catch (error: any) {
         return response.status(500).json(error.message);

@@ -9,6 +9,7 @@ export type TestCase = {
     projectId: number;
     environmentId?: number | null;
     testScenarioId?: number | null;
+    dueDate?: Date | null;
 };
 
 export const create = async (testCase: Omit<TestCase, "id">): Promise<TestCase> => {

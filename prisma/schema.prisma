@@ -20,6 +20,7 @@ model User {
   habilities     Hability[]
   devices        Device[]
   reports        Report[]
+  notifications  NotificationRecipient[]
 }
 
 model Project {
@@ -28,6 +29,7 @@ model Project {
   description   String
   visibility    Int
   situation     Int
+  dueDate       DateTime?
   creatorId     Int
   creator       User           @relation(fields: [creatorId], references: [id])
   environments  Environment[]
@@ -37,6 +39,7 @@ model Project {
   tags          Tag[]
   tagValues     TagValue[]
   testScenarios TestScenario[]
+  notificationSettings NotificationSettings?
 }
 
 model TestScenario {
@@ -55,6 +58,7 @@ model TestCase {
   testScenarioId Int?
   projectId      Int
   environmentId  Int?
+  dueDate        DateTime?
   testScenario   TestScenario?   @relation(fields: [testScenarioId], references: [id])
   project        Project         @relation(fields: [projectId], references: [id])
   environment    Environment?    @relation(fields: [environmentId], references: [id])
@@ -139,6 +143,43 @@ model Report {
   userId          Int
   testExecution   TestExecution? @relation(fields: [testExecutionId], references: [id])
   user            User?          @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id         Int                     @id @default(autoincrement())
+  type       Int
+  title      String
+  message    String
+  metadata   Json?
+  projectId  Int?
+  createdAt  DateTime                @default(now())
+  recipients NotificationRecipient[]
+}
+
+model NotificationRecipient {
+  id              Int           @id @default(autoincrement())
+  userId          Int
+  notificationId  Int
+  readAt          DateTime?
+  emailSentAt     DateTime?
+  emailError      String?
+  user            User          @relation(fields: [userId], references: [id])
+  notification    Notification  @relation(fields: [notificationId], references: [id])
+
+  @@unique([userId, notificationId])
+}
+
+model NotificationSettings {
+  id                      Int      @id @default(autoincrement())
+  projectId               Int      @unique
+  enableExecutionRejected Boolean  @default(true)
+  enableInviteAccepted    Boolean  @default(true)
+  enableDeadlineExceeded  Boolean  @default(true)
+  enableDeadlineWarning   Boolean  @default(false)
+  deadlineWarningDays     Int      @default(0)
+  notifyEmail             Boolean  @default(true)
+  notifyInApp             Boolean  @default(true)
+  project                 Project  @relation(fields: [projectId], references: [id])
 }
 
 model Tag {

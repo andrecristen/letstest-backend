@@ -6,6 +6,7 @@ import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination
 
 import * as InvolvementService from "./involvement.service";
 import * as UserService from "../user/user.service";
+import * as NotificationService from "../notification/notification.service";
 
 export const involvementRouter = express.Router();
 
@@ -154,6 +155,9 @@ const updateSituation = async (request: Request, response: Response, situation: 
             return response.status(404).json("Convite não encontrado");
         }
         const updatedInvolvement = await InvolvementService.update(id, { situation: situation });
+        if (situation === InvolvementService.InvolvementSituation.accepted) {
+            await NotificationService.notifyInviteAccepted(updatedInvolvement.id);
+        }
         return response.status(200).json(updatedInvolvement);
     } catch (error: any) {
         return response.status(500).json(error.message);

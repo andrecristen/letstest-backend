@@ -15,6 +15,8 @@ import { deviceRouter } from "./device/device.router";
 import { reportRouter } from "./report/report.router";
 import { tagRouter } from "./tag/tag.router";
 import { testScenarioRouter } from "./testScenario/testScenario.router";
+import { notificationRouter } from "./notification/notification.router";
+import { notificationSettingsRouter } from "./notification/notificationSettings.router";
 
 dotenv.config();
 
@@ -37,6 +39,8 @@ app.use("/api/hability", habilityRouter);
 app.use("/api/device", deviceRouter);
 app.use("/api/report", reportRouter);
 app.use("/api/tag", tagRouter);
+app.use("/api/notifications", notificationRouter);
+app.use("/api/notification-settings", notificationSettingsRouter);
 
 app.listen(PORT, () => {
   console.log(`Listening on port ${PORT}`);

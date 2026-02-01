@@ -7,6 +7,7 @@ export type Project = {
     description: string;
     visibility: number;
     situation: number;
+    dueDate?: Date | null;
     creatorId: number;
 };
 

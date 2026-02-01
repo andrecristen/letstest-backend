@@ -48,7 +48,10 @@ testCaseRouter.post("/:projectId", token.authMiddleware, body("name").isString()
     try {
         const projectId: number = parseInt(request.params.projectId);
         //@todo adiconar validações para ver se usuário está no projeto (gerente apenas)
-        const testCaseData = { ...request.body, projectId: projectId };
+        const testCaseData: any = { ...request.body, projectId: projectId };
+        if (testCaseData.dueDate) {
+            testCaseData.dueDate = new Date(testCaseData.dueDate);
+        }
         const newTestCase = await TestCaseService.create(testCaseData);
         return response.status(201).json(newTestCase);
     } catch (error: any) {
@@ -69,7 +72,11 @@ testCaseRouter.put("/:id", token.authMiddleware, body("name").isString(), body("
         }
         //@todo adiconar validações para ver se usuário está no projeto (gerente apenas)
         //@todo adiconar validações se esse caso de teste nao tem execucoes já
-        const updateTestCase = await TestCaseService.update(id, request.body);
+        const updatePayload: any = { ...request.body };
+        if (updatePayload.dueDate) {
+            updatePayload.dueDate = new Date(updatePayload.dueDate);
+        }
+        const updateTestCase = await TestCaseService.update(id, updatePayload);
         return response.status(200).json(updateTestCase);
     } catch (error: any) {
         return response.status(500).json(error.message);
