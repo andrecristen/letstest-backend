@@ -117,6 +117,7 @@ involvementRouter.post("/invite", token.authMiddleware, body("project").isNumeri
             projectId: projectId,
         };
         const newProject = await InvolvementService.create(involvement);
+        await NotificationService.notifyInviteReceived(newProject.id);
         return response.status(201).json(newProject);
     } catch (error: any) {
         return response.status(500).json(error.message);
@@ -155,9 +156,10 @@ const updateSituation = async (request: Request, response: Response, situation: 
         if (!involvement) {
             return response.status(404).json("Convite não encontrado");
         }
+        const previousSituation = involvement.situation;
         const updatedInvolvement = await InvolvementService.update(id, { situation: situation });
         if (situation === InvolvementService.InvolvementSituation.accepted) {
-            await NotificationService.notifyInviteAccepted(updatedInvolvement.id);
+            await NotificationService.notifyInviteAccepted(updatedInvolvement.id, previousSituation);
         }
         return response.status(200).json(updatedInvolvement);
     } catch (error: any) {

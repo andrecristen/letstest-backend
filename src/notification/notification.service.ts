@@ -71,6 +71,13 @@ export const createNotification = async ({
     userIds.forEach((userId) => {
       io.to(`user:${userId}`).emit("notification:new", { userId });
     });
+    console.info(`[notification] emitted notification:new to ${userIds.length} users`, {
+      type,
+      projectId,
+      userIds,
+    });
+  } else {
+    console.warn("[notification] socket server not available; skipping realtime emit");
   }
 
   if (sendEmailFlag) {
@@ -155,7 +162,10 @@ export const notifyExecutionRejected = async (testExecutionId: number, reportId:
   });
 };
 
-export const notifyInviteAccepted = async (involvementId: number) => {
+export const notifyInviteAccepted = async (
+  involvementId: number,
+  previousSituation?: InvolvementService.InvolvementSituation
+) => {
   const involvement = await db.involvement.findUnique({
     where: { id: involvementId },
     include: {
@@ -164,28 +174,37 @@ export const notifyInviteAccepted = async (involvementId: number) => {
     },
   });
 
-  if (!involvement?.projectId) return null;
+  if (!involvement?.projectId || !involvement.user?.id) return null;
 
   const settings = await NotificationSettingsService.getOrCreateByProject(involvement.projectId);
   if (!settings.enableInviteAccepted) return null;
 
-  const managers = await db.involvement.findMany({
-    where: {
-      projectId: involvement.projectId,
-      type: InvolvementService.InvolvementType.manager,
-      situation: InvolvementService.InvolvementSituation.accepted,
-    },
-    select: { userId: true },
-  });
-
-  const recipients = uniqueIds([
-    involvement.project?.creatorId ?? 0,
-    ...managers.map((manager) => manager.userId),
-  ]);
-
   const userName = involvement.user?.name ?? "Usuario";
-  const title = "Convite aceito";
-  const message = `${userName} aceitou o convite para o projeto "${involvement.project?.name ?? ""}".`;
+  const isApproval = previousSituation === InvolvementService.InvolvementSituation.applied;
+
+  let recipients: number[] = [];
+  let title = "Convite aceito";
+  let message = `${userName} aceitou o convite para o projeto "${involvement.project?.name ?? ""}".`;
+
+  if (isApproval) {
+    recipients = [involvement.user.id];
+    title = "Solicitacao aceita";
+    message = `Sua solicitacao para participar do projeto "${involvement.project?.name ?? ""}" foi aceita.`;
+  } else {
+    const managers = await db.involvement.findMany({
+      where: {
+        projectId: involvement.projectId,
+        type: InvolvementService.InvolvementType.manager,
+        situation: InvolvementService.InvolvementSituation.accepted,
+      },
+      select: { userId: true },
+    });
+
+    recipients = uniqueIds([
+      involvement.project?.creatorId ?? 0,
+      ...managers.map((manager) => manager.userId),
+    ]).filter((userId) => userId !== involvement.user?.id);
+  }
 
   return createNotification({
     type: NotificationType.InviteAccepted,

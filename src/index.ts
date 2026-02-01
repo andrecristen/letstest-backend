@@ -38,16 +38,22 @@ setSocketServer(io);
 
 io.on("connection", (socket) => {
   const rawToken = socket.handshake.auth?.token;
+  let userId: number | null = null;
   if (rawToken) {
     try {
       const decoded: any = token.verify(rawToken);
       if (decoded?.id) {
+        userId = decoded.id;
         socket.join(`user:${decoded.id}`);
       }
     } catch {
-      // ignore invalid token
+      console.warn(`[socket] invalid token for socket ${socket.id}`);
     }
   }
+  console.info(`[socket] connected ${socket.id}${userId ? ` user:${userId}` : ""}`);
+  socket.on("disconnect", (reason) => {
+    console.info(`[socket] disconnected ${socket.id}${userId ? ` user:${userId}` : ""} (${reason})`);
+  });
 });
 
 app.use(cors());
