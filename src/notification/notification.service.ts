@@ -3,6 +3,7 @@ import { sendEmail } from "../utils/email.server";
 import * as InvolvementService from "../involvement/involvement.service";
 import { ReportType } from "../report/report.service";
 import * as NotificationSettingsService from "./notificationSettings.service";
+import { getSocketServer } from "../utils/socket.server";
 
 export enum NotificationType {
   ExecutionRejected = 1,
@@ -63,6 +64,13 @@ export const createNotification = async ({
       },
     },
   });
+
+  const io = getSocketServer();
+  if (io) {
+    userIds.forEach((userId) => {
+      io.to(`user:${userId}`).emit("notification:new", { userId });
+    });
+  }
 
   if (sendEmailFlag) {
     const users = await db.user.findMany({

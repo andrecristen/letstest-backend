@@ -1,6 +1,8 @@
 import * as dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
+import { createServer } from "http";
+import { Server } from "socket.io";
 
 import { userRouter } from "./user/user.router";
 import { projectRouter } from "./project/project.router";
@@ -17,12 +19,36 @@ import { tagRouter } from "./tag/tag.router";
 import { testScenarioRouter } from "./testScenario/testScenario.router";
 import { notificationRouter } from "./notification/notification.router";
 import { notificationSettingsRouter } from "./notification/notificationSettings.router";
+import { setSocketServer } from "./utils/socket.server";
+import { token } from "./utils/token.server";
 
 dotenv.config();
 
 const PORT = process.env.PORT ?? 4000
 
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+  },
+});
+
+setSocketServer(io);
+
+io.on("connection", (socket) => {
+  const rawToken = socket.handshake.auth?.token;
+  if (rawToken) {
+    try {
+      const decoded: any = token.verify(rawToken);
+      if (decoded?.id) {
+        socket.join(`user:${decoded.id}`);
+      }
+    } catch {
+      // ignore invalid token
+    }
+  }
+});
 
 app.use(cors());
 app.use(express.json());
@@ -42,7 +68,7 @@ app.use("/api/tag", tagRouter);
 app.use("/api/notifications", notificationRouter);
 app.use("/api/notification-settings", notificationSettingsRouter);
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`Listening on port ${PORT}`);
 });
 

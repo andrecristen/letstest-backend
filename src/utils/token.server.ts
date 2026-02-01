@@ -19,6 +19,10 @@ token.sign = (user: User) => {
     return jwt.sign(user, SECRET, { expiresIn: '8h' });
 }
 
+token.verify = (rawToken: string) => {
+    return jwt.verify(rawToken, SECRET);
+}
+
 token.authMiddleware = (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization;
 
