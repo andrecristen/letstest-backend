@@ -1,6 +1,9 @@
 import * as dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import { createServer } from "http";
 import { Server } from "socket.io";
 
@@ -22,15 +25,16 @@ import { notificationSettingsRouter } from "./notification/notificationSettings.
 import { setSocketServer } from "./utils/socket.server";
 import { token } from "./utils/token.server";
 
-dotenv.config();
+const PORT = process.env.PORT ?? 4000;
 
-const PORT = process.env.PORT ?? 4000
+const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:3000").split(",");
 
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: "*",
+    origin: allowedOrigins,
+    credentials: true,
   },
 });
 
@@ -56,8 +60,30 @@ io.on("connection", (socket) => {
   });
 });
 
-app.use(cors());
+// Rate limiters
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+}));
 app.use(express.json());
+app.use("/api/", generalLimiter);
+app.use("/api/users/auth", authLimiter);
+app.use("/api/users/register", authLimiter);
 app.use("/api/users", userRouter);
 app.use("/api/projects", projectRouter);
 app.use("/api/test-case", testCaseRouter);

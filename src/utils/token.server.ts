@@ -2,8 +2,10 @@ import jwt, { Secret, JwtPayload } from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { User } from '../user/user.service';
 
-
-const SECRET = "41468fee1c47b0cf6252da2317cde5562564866b6194ada13df5bc378ba61c67";
+const SECRET = process.env.JWT_SECRET;
+if (!SECRET) {
+    throw new Error("JWT_SECRET environment variable is required");
+}
 
 declare global {
     namespace Express {
