@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: letstest-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: letstest
+      POSTGRES_PASSWORD: letstest
+      POSTGRES_DB: letstest
+    ports:
+      - "5432:5432"
+    volumes:
+      - letstest_pgdata:/var/lib/postgresql/data
+
+volumes:
+  letstest_pgdata:
