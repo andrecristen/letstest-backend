@@ -3,18 +3,10 @@ import { PaginationParams } from "../utils/pagination";
 
 export type Involvement = {
     id: number;
-    situation: number;
     type: number;
     userId: number;
     projectId: number;
 };
-
-export enum InvolvementSituation {
-    applied = 1,
-    invited = 2,
-    rejected = 3,
-    accepted = 4,
-}
 
 export enum InvolvementType {
     tester = 1,

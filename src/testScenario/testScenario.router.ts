@@ -7,10 +7,13 @@ import { db } from "../utils/db.server";
 
 import * as TestScenarioService from "./testScenario.service";
 import * as ProjectService from "../project/project.service";
+import { dispatchEvent } from "../webhook/webhook.service";
 
 export const testScenarioRouter = express.Router();
 
 testScenarioRouter.get("/project/:projectId", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['TestScenarios']
+    // #swagger.description = 'Lista cenarios de teste de um projeto (paginado).'
     try {
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
         const projectId: number = parseInt(request.params.projectId);
@@ -28,6 +31,8 @@ testScenarioRouter.get("/project/:projectId", token.authMiddleware, async (reque
 });
 
 testScenarioRouter.get("/:id", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['TestScenarios']
+    // #swagger.description = 'Busca um cenario de teste por id.'
     const id: number = parseInt(request.params.id);
     try {
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
@@ -53,16 +58,28 @@ testScenarioRouter.get("/:id", token.authMiddleware, async (request: Request, re
 });
 
 testScenarioRouter.post("/:projectId", token.authMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
+    // #swagger.tags = ['TestScenarios']
+    // #swagger.description = 'Cria um cenario de teste no projeto.'
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });
     }
     try {
         const projectId: number = parseInt(request.params.projectId);
-        //@todo adiconar validações para ver se usuário está no projeto (gerente apenas)
+        const userId = request.user?.id;
         const project = await ProjectService.find(projectId);
         if (!project) {
             return response.status(404).json("Projeto não encontrado");
+        }
+        const isManager = await db.involvement.findFirst({
+            where: {
+                projectId: projectId,
+                userId,
+                type: 2,
+            },
+        });
+        if (project.creatorId !== userId && !isManager) {
+            return response.status(403).json("Você não tem permissão para criar cenários de teste");
         }
         let approvalStatus = 3;
         let approvedAt: Date | undefined;
@@ -77,6 +94,13 @@ testScenarioRouter.post("/:projectId", token.authMiddleware, body("name").isStri
         }
         const testScenarioData = { ...request.body, projectId: projectId, approvalStatus, approvedAt, approvedById };
         const newTestScenario = await TestScenarioService.create(testScenarioData);
+
+        dispatchEvent(project.organizationId, "test_scenario.created", {
+            id: newTestScenario.id,
+            projectId: newTestScenario.projectId,
+            name: newTestScenario.name,
+        }).catch(console.error);
+
         return response.status(201).json(newTestScenario);
     } catch (error: any) {
         return response.status(500).json(error.message);
@@ -84,6 +108,8 @@ testScenarioRouter.post("/:projectId", token.authMiddleware, body("name").isStri
 });
 
 testScenarioRouter.put("/:id/status", token.authMiddleware, body("status").isNumeric(), async (request: Request, response: Response) => {
+    // #swagger.tags = ['TestScenarios']
+    // #swagger.description = 'Atualiza o status de aprovacao do cenario de teste.'
     const id: number = parseInt(request.params.id);
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
@@ -107,8 +133,7 @@ testScenarioRouter.put("/:id/status", token.authMiddleware, body("status").isNum
             where: {
                 projectId: testScenario.projectId,
                 userId,
-                type: 1,
-                situation: 2,
+                type: 2,
             },
         });
         if (project.creatorId !== userId && !isManager) {
@@ -133,6 +158,8 @@ testScenarioRouter.put("/:id/status", token.authMiddleware, body("status").isNum
 });
 
 testScenarioRouter.put("/:id", token.authMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
+    // #swagger.tags = ['TestScenarios']
+    // #swagger.description = 'Atualiza um cenario de teste (sem execucoes).'
     const id: number = parseInt(request.params.id);
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
@@ -143,7 +170,21 @@ testScenarioRouter.put("/:id", token.authMiddleware, body("name").isString(), bo
         if (!testScenario) {
             return response.status(404).json("Caso de Teste não encontrado");
         }
-        //@todo adiconar validações para ver se usuário está no projeto (gerente apenas)
+        const userId = request.user?.id;
+        const project = await ProjectService.find(testScenario.projectId);
+        if (!project) {
+            return response.status(404).json("Projeto não encontrado");
+        }
+        const isManager = await db.involvement.findFirst({
+            where: {
+                projectId: testScenario.projectId,
+                userId,
+                type: 2,
+            },
+        });
+        if (project.creatorId !== userId && !isManager) {
+            return response.status(403).json("Você não tem permissão para editar cenários de teste");
+        }
         const executionCount = await db.testExecution.count({
             where: {
                 testCase: {

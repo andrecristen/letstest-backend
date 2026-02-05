@@ -18,13 +18,6 @@ const ProjectSituation = {
   Testing: 1,
 };
 
-const InvolvementSituation = {
-  Applied: 1,
-  Invited: 2,
-  Rejected: 3,
-  Accepted: 4,
-};
-
 const InvolvementType = {
   Tester: 1,
   Manager: 2,
@@ -89,6 +82,19 @@ const now = new Date();
 const daysFromNow = (days: number) => new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 const minutesAgo = (minutes: number) => new Date(now.getTime() - minutes * 60 * 1000);
 
+declare const process: {
+  env: Record<string, string | undefined>;
+  exit: (code?: number) => void;
+};
+
+const makeId = (() => {
+  let id = 1000;
+  return () => {
+    id += 1;
+    return id;
+  };
+})();
+
 async function resetDatabase() {
   await prisma.notificationRecipient.deleteMany();
   await prisma.notification.deleteMany();
@@ -102,18 +108,18 @@ async function resetDatabase() {
   await prisma.tag.deleteMany();
   await prisma.template.deleteMany();
   await prisma.involvement.deleteMany();
+  await prisma.notificationSettings.deleteMany();
+  await prisma.usageRecord.deleteMany();
+  await prisma.subscription.deleteMany();
+  await prisma.organizationInvite.deleteMany();
+  await prisma.organizationMember.deleteMany();
+  await prisma.project.deleteMany();
+  await prisma.file.deleteMany();
   await prisma.device.deleteMany();
   await prisma.hability.deleteMany();
-  await prisma.notificationSettings.deleteMany();
-  await prisma.project.deleteMany();
+  await prisma.organization.deleteMany();
   await prisma.user.deleteMany();
-  await prisma.file.deleteMany();
 }
-
-declare const process: {
-  env: Record<string, string | undefined>;
-  exit: (code?: number) => void;
-};
 
 async function main() {
   const shouldReset = process.env.SEED_RESET === "1" || process.env.SEED_RESET === "true";
@@ -126,6 +132,18 @@ async function main() {
     throw new Error("Failed to hash default password.");
   }
 
+  const orgDemo = await prisma.organization.create({
+    data: { name: "Letstest Demo", slug: "letstest-demo", plan: "free" },
+  });
+
+  const orgSandbox = await prisma.organization.create({
+    data: { name: "QA Sandbox", slug: "qa-sandbox", plan: "pro" },
+  });
+
+  const orgLab = await prisma.organization.create({
+    data: { name: "Lab Experimentos", slug: "lab-experimentos", plan: "enterprise" },
+  });
+
   const owner = await prisma.user.create({
     data: {
       name: "Andre Cristen",
@@ -133,6 +151,7 @@ async function main() {
       password: passwordHash,
       access: 1,
       bio: "Owner e gerente do projeto principal.",
+      defaultOrgId: orgDemo.id,
     },
   });
 
@@ -143,66 +162,118 @@ async function main() {
       password: passwordHash,
       access: 1,
       bio: "Gerente QA com foco em automacao.",
+      defaultOrgId: orgDemo.id,
     },
   });
 
-  const tester = await prisma.user.create({
+  const testers = [] as { id: number; name: string; email: string }[];
+  const testerBase = [
+    { name: "Lucas Silva", email: "lucas@letstest.com" },
+    { name: "Paula Souza", email: "paula@letstest.com" },
+    { name: "Renata Gomes", email: "renata@letstest.com" },
+    { name: "Rafael Lima", email: "rafael@letstest.com" },
+    { name: "Camila Duarte", email: "camila@letstest.com" },
+    { name: "Thiago Costa", email: "thiago@letstest.com" },
+    { name: "Vanessa Rocha", email: "vanessa@letstest.com" },
+    { name: "Pedro Martins", email: "pedro@letstest.com" },
+  ];
+
+  for (const user of testerBase) {
+    const created = await prisma.user.create({
+      data: {
+        name: user.name,
+        email: user.email,
+        password: passwordHash,
+        access: 1,
+        bio: "Testador ativo em multiplos projetos.",
+        defaultOrgId: orgDemo.id,
+      },
+    });
+    testers.push(created);
+  }
+
+  await prisma.organizationMember.createMany({
+    data: [
+      { organizationId: orgDemo.id, userId: owner.id, role: "owner" },
+      { organizationId: orgDemo.id, userId: manager.id, role: "admin" },
+      ...testers.map((tester) => ({ organizationId: orgDemo.id, userId: tester.id, role: "member" })),
+      { organizationId: orgSandbox.id, userId: owner.id, role: "owner" },
+      { organizationId: orgSandbox.id, userId: manager.id, role: "admin" },
+      { organizationId: orgLab.id, userId: owner.id, role: "owner" },
+    ],
+  });
+
+  const subscription = await prisma.subscription.create({
     data: {
-      name: "Lucas Silva",
-      email: "lucas@letstest.com",
-      password: passwordHash,
-      access: 1,
-      bio: "Testador funcional e exploratorio.",
+      organizationId: orgSandbox.id,
+      plan: "pro",
+      status: "active",
+      currentPeriodStart: daysFromNow(-10),
+      currentPeriodEnd: daysFromNow(20),
     },
   });
 
-  const tester2 = await prisma.user.create({
-    data: {
-      name: "Paula Souza",
-      email: "paula@letstest.com",
-      password: passwordHash,
-      access: 1,
-      bio: "Testadora mobile e performance.",
-    },
+  await prisma.usageRecord.createMany({
+    data: Array.from({ length: 12 }).map((_, index) => ({
+      subscriptionId: subscription.id,
+      metric: index % 2 === 0 ? "test_cases" : "executions",
+      quantity: 50 + index * 7,
+      recordedAt: daysFromNow(-index),
+    })),
+  });
+
+  const habilityData = [
+    { userId: manager.id, type: HabilityType.Experience, value: "6 anos QA" },
+    { userId: manager.id, type: HabilityType.Certification, value: "ISTQB CTFL" },
+    { userId: owner.id, type: HabilityType.Experience, value: "10 anos produto" },
+    { userId: owner.id, type: HabilityType.SoftSkill, value: "Lideranca" },
+    ...Array.from({ length: 18 }).map((_, index) => ({
+      userId: owner.id,
+      type: (index % 5) + 1,
+      value: `Skill extra ${index + 1}`,
+    })),
+  ];
+
+  testers.slice(0, 4).forEach((tester, index) => {
+    habilityData.push({ userId: tester.id, type: HabilityType.Language, value: `Idioma ${index + 1}` });
+    habilityData.push({ userId: tester.id, type: HabilityType.Course, value: `Curso ${index + 1}` });
   });
 
   await prisma.hability.createMany({
-    data: [
-      { userId: manager.id, type: HabilityType.Experience, value: "6 anos QA" },
-      { userId: manager.id, type: HabilityType.Certification, value: "ISTQB CTFL" },
-      { userId: tester.id, type: HabilityType.Language, value: "Ingles intermediario" },
-      { userId: tester2.id, type: HabilityType.Course, value: "Cypress avancado" },
-      { userId: tester2.id, type: HabilityType.SoftSkill, value: "Comunicacao clara" },
-    ],
+    data: habilityData,
   });
 
-  const devicePhone = await prisma.device.create({
-    data: {
-      userId: tester.id,
-      type: DeviceType.Smartphone,
-      brand: "Apple",
-      model: "iPhone 14",
-      system: "iOS 17",
-    },
+  const deviceData = [
+    ...Array.from({ length: 20 }).map((_, index) => ({
+      userId: owner.id,
+      type: (index % 4) + 1,
+      brand: index % 2 === 0 ? "Apple" : "Samsung",
+      model: `Device ${index + 1}`,
+      system: index % 2 === 0 ? "iOS 17" : "Android 14",
+    })),
+    ...Array.from({ length: 14 }).map((_, index) => ({
+      userId: manager.id,
+      type: (index % 4) + 1,
+      brand: index % 2 === 0 ? "Dell" : "Lenovo",
+      model: `Notebook ${index + 1}`,
+      system: index % 2 === 0 ? "Windows 11" : "Ubuntu 22.04",
+    })),
+  ];
+
+  testers.forEach((tester, index) => {
+    Array.from({ length: 6 }).forEach((_, deviceIndex) => {
+      deviceData.push({
+        userId: tester.id,
+        type: ((deviceIndex + index) % 4) + 1,
+        brand: deviceIndex % 2 === 0 ? "Xiaomi" : "Motorola",
+        model: `Tester ${index + 1} Device ${deviceIndex + 1}`,
+        system: deviceIndex % 2 === 0 ? "Android 13" : "Android 14",
+      });
+    });
   });
 
   await prisma.device.createMany({
-    data: [
-      {
-        userId: tester2.id,
-        type: DeviceType.Notebook,
-        brand: "Dell",
-        model: "XPS 13",
-        system: "Windows 11",
-      },
-      {
-        userId: manager.id,
-        type: DeviceType.Desktop,
-        brand: "Custom",
-        model: "Ryzen 7",
-        system: "Ubuntu 22.04",
-      },
-    ],
+    data: deviceData,
   });
 
   const projectMain = await prisma.project.create({
@@ -212,6 +283,7 @@ async function main() {
       visibility: ProjectVisibility.Private,
       situation: ProjectSituation.Testing,
       creatorId: owner.id,
+      organizationId: orgDemo.id,
       approvalEnabled: true,
       approvalScenarioEnabled: true,
       approvalTestCaseEnabled: true,
@@ -226,69 +298,138 @@ async function main() {
       visibility: ProjectVisibility.Public,
       situation: ProjectSituation.Testing,
       creatorId: owner.id,
+      organizationId: orgDemo.id,
       approvalEnabled: false,
       approvalScenarioEnabled: false,
       approvalTestCaseEnabled: false,
     },
   });
 
+  const demoProjects = await Promise.all(
+    Array.from({ length: 22 }).map((_, index) =>
+      prisma.project.create({
+        data: {
+          name: `Projeto Demo ${index + 1}`,
+          description: "Projeto de teste para scroll infinito.",
+          visibility: index % 3 === 0 ? ProjectVisibility.Public : ProjectVisibility.Private,
+          situation: ProjectSituation.Testing,
+          creatorId: index % 2 === 0 ? owner.id : manager.id,
+          organizationId: orgDemo.id,
+          approvalEnabled: index % 2 === 0,
+          approvalScenarioEnabled: index % 3 === 0,
+          approvalTestCaseEnabled: true,
+        },
+      })
+    )
+  );
+
+  await Promise.all(
+    Array.from({ length: 8 }).map((_, index) =>
+      prisma.project.create({
+        data: {
+          name: `Sandbox ${index + 1}`,
+          description: "Area de experimentos QA.",
+          visibility: ProjectVisibility.Private,
+          situation: ProjectSituation.Testing,
+          creatorId: manager.id,
+          organizationId: orgSandbox.id,
+          approvalEnabled: true,
+          approvalScenarioEnabled: index % 2 === 0,
+          approvalTestCaseEnabled: true,
+        },
+      })
+    )
+  );
+
+  await Promise.all(
+    Array.from({ length: 6 }).map((_, index) =>
+      prisma.project.create({
+        data: {
+          name: `Lab ${index + 1}`,
+          description: "Iniciativas enterprise.",
+          visibility: ProjectVisibility.Private,
+          situation: ProjectSituation.Testing,
+          creatorId: owner.id,
+          organizationId: orgLab.id,
+          approvalEnabled: true,
+          approvalScenarioEnabled: true,
+          approvalTestCaseEnabled: true,
+        },
+      })
+    )
+  );
+
   await prisma.notificationSettings.createMany({
     data: [
       { projectId: projectMain.id, enableDeadlineWarning: true, deadlineWarningDays: 7 },
       { projectId: projectPublic.id, enableDeadlineWarning: true, deadlineWarningDays: 3 },
+      ...demoProjects.slice(0, 6).map((project, index) => ({
+        projectId: project.id,
+        enableDeadlineWarning: true,
+        deadlineWarningDays: index % 5,
+      })),
     ],
   });
 
   await prisma.involvement.createMany({
     data: [
-      {
-        projectId: projectMain.id,
-        userId: manager.id,
-        type: InvolvementType.Manager,
-        situation: InvolvementSituation.Accepted,
-      },
-      {
+      { projectId: projectMain.id, userId: manager.id, type: InvolvementType.Manager },
+      ...testers.map((tester) => ({
         projectId: projectMain.id,
         userId: tester.id,
         type: InvolvementType.Tester,
-        situation: InvolvementSituation.Accepted,
-      },
-      {
-        projectId: projectMain.id,
-        userId: tester2.id,
-        type: InvolvementType.Tester,
-        situation: InvolvementSituation.Invited,
-      },
-      {
-        projectId: projectPublic.id,
-        userId: tester2.id,
-        type: InvolvementType.Tester,
-        situation: InvolvementSituation.Applied,
-      },
+      })),
+      { projectId: projectPublic.id, userId: testers[0].id, type: InvolvementType.Tester },
+      { projectId: projectPublic.id, userId: testers[1].id, type: InvolvementType.Tester },
+      { projectId: projectPublic.id, userId: manager.id, type: InvolvementType.Manager },
     ],
   });
 
-  const envStaging = await prisma.environment.create({
-    data: {
-      projectId: projectMain.id,
-      name: "Staging",
-      description: "Ambiente com dados anonimizados.",
-      situation: EnvironmentSituation.Operative,
-    },
+  const demoInvolvements: Array<{ projectId: number; userId: number; type: number }> = [];
+  demoProjects.slice(0, 10).forEach((project, index) => {
+    demoInvolvements.push({ projectId: project.id, userId: manager.id, type: InvolvementType.Manager });
+    demoInvolvements.push({
+      projectId: project.id,
+      userId: testers[index % testers.length].id,
+      type: InvolvementType.Tester,
+    });
+    demoInvolvements.push({
+      projectId: project.id,
+      userId: testers[(index + 2) % testers.length].id,
+      type: InvolvementType.Tester,
+    });
   });
 
-  const envProd = await prisma.environment.create({
-    data: {
+  await prisma.involvement.createMany({
+    data: demoInvolvements,
+  });
+
+  const environments = await Promise.all(
+    ["Staging", "Producao", "QA", "Homologacao"].map((name) =>
+      prisma.environment.create({
+        data: {
+          projectId: projectMain.id,
+          name,
+          description: `Ambiente ${name.toLowerCase()} do projeto principal.`,
+          situation: EnvironmentSituation.Operative,
+        },
+      })
+    )
+  );
+
+  await prisma.environment.createMany({
+    data: Array.from({ length: 26 }).map((_, index) => ({
       projectId: projectMain.id,
-      name: "Producao",
-      description: "Ambiente produtivo de referencia.",
+      name: `Env ${index + 1}`,
+      description: `Ambiente adicional ${index + 1}.`,
       situation: EnvironmentSituation.Operative,
-    },
+    })),
   });
 
   const priorityTag = await prisma.tag.create({
     data: {
       projectId: projectMain.id,
+      organizationId: orgDemo.id,
       name: "Prioridade",
       situation: TagSituation.Use,
       commentary: "Nivel de prioridade do caso.",
@@ -298,6 +439,7 @@ async function main() {
   const priorityHigh = await prisma.tagValue.create({
     data: {
       projectId: projectMain.id,
+      organizationId: orgDemo.id,
       tagId: priorityTag.id,
       name: "Alta",
       situation: TagSituation.Use,
@@ -308,11 +450,50 @@ async function main() {
   const priorityMedium = await prisma.tagValue.create({
     data: {
       projectId: projectMain.id,
+      organizationId: orgDemo.id,
       tagId: priorityTag.id,
       name: "Media",
       situation: TagSituation.Use,
       commentary: "Importante, mas nao bloqueia release.",
     },
+  });
+
+  const extraTags = await Promise.all(
+    Array.from({ length: 12 }).map((_, index) =>
+      prisma.tag.create({
+        data: {
+          projectId: projectMain.id,
+          organizationId: orgDemo.id,
+          name: `Tag ${index + 1}`,
+          situation: TagSituation.Use,
+          commentary: "Tag criada para testar listagens.",
+        },
+      })
+    )
+  );
+
+  const tagValueData: Array<{
+    projectId: number;
+    organizationId: number;
+    tagId: number;
+    name: string;
+    situation: number;
+  }> = [];
+
+  extraTags.forEach((tag, tagIndex) => {
+    Array.from({ length: 5 }).forEach((_, valueIndex) => {
+      tagValueData.push({
+        projectId: projectMain.id,
+        organizationId: orgDemo.id,
+        tagId: tag.id,
+        name: `Valor ${tagIndex + 1}.${valueIndex + 1}`,
+        situation: TagSituation.Use,
+      });
+    });
+  });
+
+  await prisma.tagValue.createMany({
+    data: tagValueData,
   });
 
   const scenarioTemplateRows = [
@@ -342,6 +523,7 @@ async function main() {
     data: [
       {
         projectId: projectMain.id,
+        organizationId: orgDemo.id,
         name: "Definicao de Cenario",
         description: "Base para definir cenarios completos.",
         type: TemplateType.ExecutionTestScenario,
@@ -349,6 +531,7 @@ async function main() {
       },
       {
         projectId: projectMain.id,
+        organizationId: orgDemo.id,
         name: "Definicao de Caso",
         description: "Modelo padrao de caso de teste.",
         type: TemplateType.DefinitionTestCase,
@@ -356,6 +539,7 @@ async function main() {
       },
       {
         projectId: projectMain.id,
+        organizationId: orgDemo.id,
         name: "Execucao de Caso",
         description: "Checklist de execucao.",
         type: TemplateType.ExecutionTestCase,
@@ -369,222 +553,189 @@ async function main() {
     ],
   });
 
-  const scenarioApproved = await prisma.testScenario.create({
-    data: {
+  await prisma.template.createMany({
+    data: Array.from({ length: 20 }).map((_, index) => ({
       projectId: projectMain.id,
-      name: "Login com sucesso",
+      organizationId: orgDemo.id,
+      name: `Template extra ${index + 1}`,
+      description: "Template adicional para testes de scroll.",
+      type: index % 2 === 0 ? TemplateType.DefinitionTestCase : TemplateType.ExecutionTestScenario,
       data: buildTableData([
-        makeRow(4001, [
-          makeColumn(4101, "Label", "Objetivo"),
-          makeColumn(4102, "Texto Longo", "Validar login com credenciais validas."),
-        ]),
-        makeRow(4002, [
-          makeColumn(4201, "Label", "Pre-condicoes"),
-          makeColumn(4202, "Texto Longo", "Usuario ativo e sem bloqueios."),
+        makeRow(makeId(), [
+          makeColumn(makeId(), "Label", "Campo"),
+          makeColumn(makeId(), "Texto Longo", `Descricao ${index + 1}`),
         ]),
       ]),
-      approvalStatus: ApprovalStatus.Approved,
-      approvedAt: now,
-      approvedById: manager.id,
-    },
+    })),
   });
 
-  await prisma.testScenario.create({
-    data: {
-      projectId: projectMain.id,
-      name: "Recuperacao de senha",
+  await prisma.template.createMany({
+    data: Array.from({ length: 8 }).map((_, index) => ({
+      organizationId: orgDemo.id,
+      name: `Template org ${index + 1}`,
+      description: "Template global da organizacao.",
+      type: TemplateType.DefinitionTestCase,
       data: buildTableData([
-        makeRow(4011, [
-          makeColumn(4111, "Label", "Objetivo"),
-          makeColumn(4112, "Texto Longo", "Verificar envio de email para reset."),
+        makeRow(makeId(), [
+          makeColumn(makeId(), "Label", "Resumo"),
+          makeColumn(makeId(), "Texto", `Org ${index + 1}`),
         ]),
       ]),
-      approvalStatus: ApprovalStatus.Draft,
-      reviewedAt: now,
-      reviewedById: manager.id,
-    },
+    })),
   });
 
-  const scenarioApproved2 = await prisma.testScenario.create({
-    data: {
-      projectId: projectMain.id,
-      name: "Cadastro com dados invalidos",
-      data: buildTableData([
-        makeRow(4021, [
-          makeColumn(4121, "Label", "Objetivo"),
-          makeColumn(4122, "Texto Longo", "Garantir validacoes no formulario de cadastro."),
+  const scenarios = [] as { id: number; approved: boolean }[];
+  for (let i = 0; i < 35; i += 1) {
+    const approved = i % 3 === 0;
+    const scenario = await prisma.testScenario.create({
+      data: {
+        projectId: projectMain.id,
+        name: `Cenario ${i + 1}`,
+        data: buildTableData([
+          makeRow(makeId(), [
+            makeColumn(makeId(), "Label", "Objetivo"),
+            makeColumn(makeId(), "Texto Longo", `Objetivo do cenario ${i + 1}`),
+          ]),
         ]),
-      ]),
-      approvalStatus: ApprovalStatus.Approved,
-      approvedAt: now,
-      approvedById: manager.id,
-    },
-  });
+        approvalStatus: approved ? ApprovalStatus.Approved : ApprovalStatus.Draft,
+        approvedAt: approved ? now : undefined,
+        approvedById: approved ? manager.id : undefined,
+      },
+    });
+    scenarios.push({ id: scenario.id, approved });
+  }
 
-  await prisma.testScenario.create({
-    data: {
-      projectId: projectMain.id,
-      name: "Atualizacao de perfil",
-      data: buildTableData([
-        makeRow(4031, [
-          makeColumn(4131, "Label", "Objetivo"),
-          makeColumn(4132, "Texto Longo", "Validar atualizacao de dados do usuario."),
-        ]),
-      ]),
-      approvalStatus: ApprovalStatus.Draft,
-    },
-  });
+  const testCases = [] as { id: number }[];
+  for (let i = 0; i < scenarios.length; i += 1) {
+    if (!scenarios[i].approved) {
+      continue;
+    }
+    for (let j = 0; j < 3; j += 1) {
+      const testCase = await prisma.testCase.create({
+        data: {
+          projectId: projectMain.id,
+          testScenarioId: scenarios[i].id,
+          environmentId: environments[(i + j) % environments.length].id,
+          name: `CT-${i + 1}-${j + 1}`,
+          data: buildTableData([
+            makeRow(makeId(), [
+              makeColumn(makeId(), "Label", "Entradas"),
+              makeColumn(makeId(), "Texto", `Entrada ${i + 1}.${j + 1}`),
+              makeColumn(makeId(), "Campo Personalizado", j % 2 === 0 ? priorityHigh.id : priorityMedium.id, { tagId: priorityTag.id }),
+            ]),
+            makeRow(makeId(), [
+              makeColumn(makeId(), "Label", "Resultado esperado"),
+              makeColumn(makeId(), "Texto Longo", `Resultado esperado ${i + 1}.${j + 1}`),
+            ]),
+          ]),
+          approvalStatus: j % 2 === 0 ? ApprovalStatus.Approved : ApprovalStatus.Draft,
+          approvedAt: j % 2 === 0 ? now : undefined,
+          approvedById: j % 2 === 0 ? manager.id : undefined,
+          dueDate: daysFromNow(5 + j),
+        },
+      });
+      testCases.push(testCase);
+    }
+  }
 
-  const testCaseApproved = await prisma.testCase.create({
-    data: {
-      projectId: projectMain.id,
-      testScenarioId: scenarioApproved.id,
-      environmentId: envStaging.id,
-      name: "CT-Login-001",
-      data: buildTableData([
-        makeRow(5001, [
-          makeColumn(5101, "Label", "Entradas"),
-          makeColumn(5102, "Texto", "usuario valido / senha valida"),
-          makeColumn(5103, "Campo Personalizado", priorityHigh.id, { tagId: priorityTag.id }),
-        ]),
-        makeRow(5002, [
-          makeColumn(5201, "Label", "Resultado esperado"),
-          makeColumn(5202, "Texto Longo", "Login realizado e dashboard exibido."),
-        ]),
-      ]),
-      approvalStatus: ApprovalStatus.Approved,
-      approvedAt: now,
-      approvedById: manager.id,
-      dueDate: daysFromNow(5),
-    },
-  });
-
-  const testCaseApproved2 = await prisma.testCase.create({
-    data: {
-      projectId: projectMain.id,
-      testScenarioId: scenarioApproved2.id,
-      environmentId: envProd.id,
-      name: "CT-Reset-002",
-      data: buildTableData([
-        makeRow(5011, [
-          makeColumn(5111, "Label", "Entradas"),
-          makeColumn(5112, "Texto", "email valido"),
-          makeColumn(5113, "Campo Personalizado", priorityMedium.id, { tagId: priorityTag.id }),
-        ]),
-        makeRow(5012, [
-          makeColumn(5211, "Label", "Resultado esperado"),
-          makeColumn(5212, "Texto Longo", "Email enviado com link de recuperacao."),
-        ]),
-      ]),
-      approvalStatus: ApprovalStatus.Approved,
-      approvedAt: now,
-      approvedById: manager.id,
-      dueDate: daysFromNow(10),
-    },
-  });
-
-  const testCaseDraft = await prisma.testCase.create({
-    data: {
-      projectId: projectMain.id,
-      testScenarioId: scenarioApproved.id,
-      environmentId: envStaging.id,
-      name: "CT-Login-002",
-      data: buildTableData([
-        makeRow(5021, [
-          makeColumn(5121, "Label", "Entradas"),
-          makeColumn(5122, "Texto", "usuario bloqueado"),
-          makeColumn(5123, "Campo Personalizado", priorityMedium.id, { tagId: priorityTag.id }),
-        ]),
-        makeRow(5022, [
-          makeColumn(5221, "Label", "Resultado esperado"),
-          makeColumn(5222, "Texto Longo", "Mensagem de bloqueio exibida."),
-        ]),
-      ]),
-      approvalStatus: ApprovalStatus.Approved,
-      approvedAt: now,
-      approvedById: manager.id,
-    },
-  });
-
-  const assignmentFinished = await prisma.testCaseAssignment.create({
-    data: {
-      testCaseId: testCaseApproved.id,
-      userId: tester.id,
-      assignedById: manager.id,
-      assignedAt: daysFromNow(-3),
-      startedAt: daysFromNow(-2),
-      totalPausedSeconds: 900,
-      finishedAt: daysFromNow(-1),
-    },
-  });
-
-  await prisma.testCaseAssignment.create({
-    data: {
-      testCaseId: testCaseApproved2.id,
-      userId: tester2.id,
-      assignedById: manager.id,
-      assignedAt: daysFromNow(-2),
-      startedAt: daysFromNow(-1),
-      lastPausedAt: minutesAgo(45),
-      totalPausedSeconds: 600,
-    },
-  });
-
-  await prisma.testCaseAssignment.create({
-    data: {
-      testCaseId: testCaseDraft.id,
-      userId: tester.id,
-      assignedById: manager.id,
-      assignedAt: daysFromNow(-1),
-    },
-  });
-
-  const testExecution = await prisma.testExecution.create({
-    data: {
-      testCaseId: testCaseApproved.id,
-      userId: tester.id,
-      deviceId: devicePhone.id,
-      reported: assignmentFinished.finishedAt ?? now,
-      testTime: 1800,
-      data: buildTableData([
-        makeRow(6001, [
-          makeColumn(6101, "Label", "Notas da execucao"),
-          makeColumn(6102, "Texto Longo", "Fluxo OK, sem erros aparentes."),
-        ]),
-      ]),
-    },
-  });
-
-  await prisma.report.createMany({
-    data: [
-      {
-        testExecutionId: testExecution.id,
+  const assignments = [] as { id: number; testCaseId: number }[];
+  for (let i = 0; i < testCases.length; i += 1) {
+    const tester = testers[i % testers.length];
+    const assignment = await prisma.testCaseAssignment.create({
+      data: {
+        testCaseId: testCases[i].id,
         userId: tester.id,
-        type: ReportType.Approved,
-        score: 5,
-        commentary: "Tudo funcionando conforme esperado.",
+        assignedById: manager.id,
+        assignedAt: daysFromNow(-((i % 7) + 1)),
+        startedAt: i % 4 === 0 ? daysFromNow(-(i % 5)) : undefined,
+        lastPausedAt: i % 6 === 0 ? minutesAgo(30 + i) : undefined,
+        finishedAt: i % 5 === 0 ? daysFromNow(-1) : undefined,
+        totalPausedSeconds: i % 6 === 0 ? 300 : 0,
       },
-      {
-        testExecutionId: testExecution.id,
-        userId: manager.id,
-        type: ReportType.Rejected,
-        score: 2,
-        commentary: "Identificado atraso no carregamento.",
+    });
+    assignments.push({ id: assignment.id, testCaseId: assignment.testCaseId });
+  }
+
+  const testExecutions = [] as { id: number }[];
+  for (let i = 0; i < 28; i += 1) {
+    const testCase = testCases[i % testCases.length];
+    const tester = testers[i % testers.length];
+    const testExecution = await prisma.testExecution.create({
+      data: {
+        testCaseId: testCase.id,
+        userId: tester.id,
+        deviceId: null,
+        reported: daysFromNow(-(i % 5)),
+        testTime: 1200 + i * 60,
+        data: buildTableData([
+          makeRow(makeId(), [
+            makeColumn(makeId(), "Label", "Notas da execucao"),
+            makeColumn(makeId(), "Texto Longo", `Execucao ${i + 1}`),
+          ]),
+        ]),
       },
-    ],
+    });
+    testExecutions.push(testExecution);
+  }
+
+  const reportPayload: Array<{
+    testExecutionId: number;
+    userId: number;
+    type: number;
+    score: number;
+    commentary: string;
+  }> = [];
+
+  testExecutions.forEach((execution, index) => {
+    Array.from({ length: 6 }).forEach((_, reportIndex) => {
+      reportPayload.push({
+        testExecutionId: execution.id,
+        userId: reportIndex % 2 === 0 ? manager.id : owner.id,
+        type: reportIndex % 2 === 0 ? ReportType.Approved : ReportType.Rejected,
+        score: 1 + ((index + reportIndex) % 5),
+        commentary: `Relatorio ${index + 1}.${reportIndex + 1}`,
+      });
+    });
   });
 
-  await prisma.project.create({
-    data: {
-      name: "Projeto Mobile",
-      description: "Aplicativo para testes de regressao mobile.",
-      visibility: ProjectVisibility.Private,
-      situation: ProjectSituation.Testing,
-      creatorId: manager.id,
-      approvalEnabled: true,
-      approvalScenarioEnabled: false,
-      approvalTestCaseEnabled: true,
-    },
+  await prisma.report.createMany({ data: reportPayload });
+
+  const notifications = await Promise.all(
+    Array.from({ length: 30 }).map((_, index) =>
+      prisma.notification.create({
+        data: {
+          type: 1,
+          title: `Atualizacao ${index + 1}`,
+          message: `Mensagem de notificacao ${index + 1}`,
+          projectId: projectMain.id,
+          organizationId: orgDemo.id,
+          metadata: { index },
+        },
+      })
+    )
+  );
+
+  const recipientPayload: Array<{
+    notificationId: number;
+    userId: number;
+    readAt: Date | null;
+  }> = [];
+
+  notifications.forEach((notification, index) => {
+    recipientPayload.push({
+      notificationId: notification.id,
+      userId: owner.id,
+      readAt: index % 4 === 0 ? daysFromNow(-1) : null,
+    });
+    recipientPayload.push({
+      notificationId: notification.id,
+      userId: manager.id,
+      readAt: index % 3 === 0 ? daysFromNow(-2) : null,
+    });
+  });
+
+  await prisma.notificationRecipient.createMany({
+    data: recipientPayload,
   });
 
   console.log("Seed concluido com sucesso.");

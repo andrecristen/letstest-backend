@@ -12,6 +12,7 @@ export type Project = {
     approvalScenarioEnabled?: boolean;
     approvalTestCaseEnabled?: boolean;
     creatorId: number;
+    organizationId: number;
 };
 
 export enum ProjectVisibilityEnum {
@@ -71,7 +72,6 @@ export const findOverview = async (id: number): Promise<Project | null> => {
             involvements: {
                 select: {
                     id: true,
-                    situation: true,
                     type: true,
                     userId: true,
                 },

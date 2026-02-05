@@ -2,29 +2,33 @@ import express from "express";
 import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
+import { tenantMiddleware } from "../utils/tenant.middleware";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 
 import * as ProjectService from "./project.service";
 import * as InvolvementService from "../involvement/involvement.service";
+import { assertWithinLimit, LimitExceededError } from "../billing/billing.service";
 
 export const projectRouter = express.Router();
 
-projectRouter.get("/me", token.authMiddleware, async (request: Request, response: Response) => {
+projectRouter.get("/me", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Projects']
+    // #swagger.description = 'Lista projetos do usuario na organizacao (paginado).'
     try {
         const userId = parseInt(request.user?.id);
+        const organizationId = request.organizationId!;
         const pagination = getPaginationParams(request.query);
         const search = typeof request.query.search === "string" ? request.query.search.trim() : "";
         const situation = request.query.situation ? parseInt(String(request.query.situation), 10) : null;
         const visibility = request.query.visibility ? parseInt(String(request.query.visibility), 10) : null;
         const involvements = await InvolvementService.findBy({
-            situation: InvolvementService.InvolvementSituation.accepted,
             type: InvolvementService.InvolvementType.manager,
             userId,
         });
         const projectIds = involvements?.map((involvement) => involvement.projectId) ?? [];
         const baseWhere = projectIds.length
-            ? { OR: [{ creatorId: userId }, { id: { in: projectIds } }] }
-            : { creatorId: userId };
+            ? { organizationId, OR: [{ creatorId: userId }, { id: { in: projectIds } }] }
+            : { organizationId, creatorId: userId };
         const filterWhere: any = {};
         if (search) {
             filterWhere.name = { contains: search, mode: "insensitive" };
@@ -47,15 +51,19 @@ projectRouter.get("/me", token.authMiddleware, async (request: Request, response
     }
 });
 
-projectRouter.get("/test", token.authMiddleware, async (request: Request, response: Response) => {
+projectRouter.get("/test", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Projects']
+    // #swagger.description = 'Lista projetos em que o usuario participa (paginado).'
     try {
         const userId = parseInt(request.user?.id);
+        const organizationId = request.organizationId!;
         const pagination = getPaginationParams(request.query);
         const result = await ProjectService.findByPaged({
+            organizationId,
             involvements: {
                 some: {
                     userId: userId,
-                    situation: InvolvementService.InvolvementSituation.accepted,
+                    type: InvolvementService.InvolvementType.tester,
                 },
             },
         }, pagination);
@@ -67,11 +75,15 @@ projectRouter.get("/test", token.authMiddleware, async (request: Request, respon
     }
 });
 
-projectRouter.get("/public", token.authMiddleware, async (request: Request, response: Response) => {
+projectRouter.get("/public", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Projects']
+    // #swagger.description = 'Lista projetos publicos disponiveis para candidatura (paginado).'
     try {
         const userId = parseInt(request.user?.id);
+        const organizationId = request.organizationId!;
         const pagination = getPaginationParams(request.query);
         const result = await ProjectService.findByPaged({
+            organizationId,
             visibility: ProjectService.ProjectVisibilityEnum.public,
             situation: ProjectService.ProjectSituationEnum.testing,
             involvements: {
@@ -93,6 +105,8 @@ projectRouter.get("/public", token.authMiddleware, async (request: Request, resp
 });
 
 projectRouter.get("/:id", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Projects']
+    // #swagger.description = 'Busca um projeto por id.'
     const id: number = parseInt(request.params.id);
     try {
         const project = await ProjectService.find(id);
@@ -105,25 +119,39 @@ projectRouter.get("/:id", token.authMiddleware, async (request: Request, respons
     }
 });
 
-projectRouter.post("/", token.authMiddleware, body("name").isString(), body("description").isString(), async (request: Request, response: Response) => {
+projectRouter.post("/", token.authMiddleware, tenantMiddleware, body("name").isString(), body("description").isString(), async (request: Request, response: Response) => {
+    // #swagger.tags = ['Projects']
+    // #swagger.description = 'Cria um projeto.'
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });
     }
     try {
         const userId = request.user?.id;
-        const projectData = { ...request.body, creatorId: userId };
+        const organizationId = request.organizationId!;
+        await assertWithinLimit("projects", { organizationId, increment: 1 });
+        const projectData = { ...request.body, creatorId: userId, organizationId };
         if (projectData.dueDate) {
             projectData.dueDate = new Date(projectData.dueDate);
         }
         const newProject = await ProjectService.create(projectData);
         return response.status(201).json(newProject);
     } catch (error: any) {
+        if (error instanceof LimitExceededError) {
+            return response.status(402).json({
+                code: "LIMIT_EXCEEDED",
+                metric: error.metric,
+                current: error.current,
+                limit: error.limit,
+            });
+        }
         return response.status(500).json(error.message);
     }
 });
 
 projectRouter.put("/:id", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Projects']
+    // #swagger.description = 'Atualiza um projeto.'
     const id: number = parseInt(request.params.id);
     try {
         const userId = request.user?.id;
@@ -146,6 +174,8 @@ projectRouter.put("/:id", token.authMiddleware, async (request: Request, respons
 });
 
 projectRouter.get("/:id/overview", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Projects']
+    // #swagger.description = 'Retorna indicadores/resumo do projeto.'
     const id: number = parseInt(request.params.id);
     try {
         const project = await ProjectService.findOverview(id);

@@ -9,6 +9,8 @@ import * as EnvironmentCaseService from "./environment.service";
 export const environmentRouter = express.Router();
 
 environmentRouter.get("/project/:projectId", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Environments']
+    // #swagger.description = 'Lista ambientes de um projeto (paginado).'
     try {
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
         const projectId: number = parseInt(request.params.projectId);
@@ -26,6 +28,8 @@ environmentRouter.get("/project/:projectId", token.authMiddleware, async (reques
 });
 
 environmentRouter.get("/:id",  token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Environments']
+    // #swagger.description = 'Busca um ambiente por id.'
     const id: number = parseInt(request.params.id);
     try {
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
@@ -40,6 +44,8 @@ environmentRouter.get("/:id",  token.authMiddleware, async (request: Request, re
 });
 
 environmentRouter.post("/:projectId", token.authMiddleware, body("name").isString(), body("description").isString(), async (request: Request, response: Response) => {
+    // #swagger.tags = ['Environments']
+    // #swagger.description = 'Cria um ambiente para o projeto.'
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });
@@ -56,6 +62,8 @@ environmentRouter.post("/:projectId", token.authMiddleware, body("name").isStrin
 });
 
 environmentRouter.put("/:id", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Environments']
+    // #swagger.description = 'Atualiza um ambiente.'
     const id: number = parseInt(request.params.id);
     try {
         const testCase = await EnvironmentCaseService.find(id);

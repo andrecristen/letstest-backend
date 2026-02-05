@@ -2,30 +2,66 @@ import express from "express";
 import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { crypt } from "../utils/crypt.server";
-import { token } from "../utils/token.server";
+import { token, TokenPayload } from "../utils/token.server";
 import { getPaginationParams } from "../utils/pagination";
 
-
 import * as UserService from "./user.service";
+import * as OrganizationService from "../organization/organization.service";
 
 export const userRouter = express.Router();
 
-userRouter.post("/register", body("email").isString(), body("name").isString(), body("password").isString(), async (request: Request, response: Response) => {
+userRouter.post("/register", body("email").isString(), body("name").isString(), body("password").isString(), body("organizationName").isString(), async (request: Request, response: Response) => {
+    // #swagger.tags = ['Users']
+    // #swagger.description = 'Cria usuario e organizacao inicial.'
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });
     }
     try {
-        const user = request.body;
-        user.password = await crypt.encrypt(user.password);
-        const newuser = await UserService.create(user);
-        return response.status(200).json(newuser);
+        const { organizationName, ...userData } = request.body;
+        userData.password = await crypt.encrypt(userData.password);
+        const newUser = await UserService.create(userData);
+
+        // Check organization limit before creating
+        const canCreate = await OrganizationService.canCreateOrganization(newUser.id);
+        if (!canCreate.allowed) {
+            return response.status(403).json({ error: canCreate.reason });
+        }
+
+        // Auto-create organization for new user
+        const orgName = organizationName || newUser.name;
+        const orgSlug = OrganizationService.generateSlug(orgName);
+        const org = await OrganizationService.create({
+            name: orgName,
+            slug: orgSlug,
+            creatorId: newUser.id,
+        });
+
+        const payload: TokenPayload = {
+            id: newUser.id,
+            email: newUser.email,
+            name: newUser.name,
+            access: newUser.access,
+            organizationId: org.id,
+            organizationRole: "owner",
+        };
+
+        return response.status(200).json({
+            userId: newUser.id,
+            token: token.sign(payload),
+            organizations: [{ ...org, role: "owner" }],
+        });
     } catch (error: any) {
+        if (error.code === "P2002") {
+            return response.status(409).json("Email já cadastrado");
+        }
         return response.status(500).json(error.message);
     }
 });
 
 userRouter.put("/:id", token.authMiddleware, body("email").isString(), body("name").isString(), async (request: Request, response: Response) => {
+    // #swagger.tags = ['Users']
+    // #swagger.description = 'Atualiza dados do usuario autenticado.'
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });
@@ -44,6 +80,8 @@ userRouter.put("/:id", token.authMiddleware, body("email").isString(), body("nam
 });
 
 userRouter.get("/", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Users']
+    // #swagger.description = 'Lista usuarios.'
     try {
         const users = await UserService.list();
         return response.status(200).json(users);
@@ -53,6 +91,8 @@ userRouter.get("/", token.authMiddleware, async (request: Request, response: Res
 });
 
 userRouter.get("/search", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Users']
+    // #swagger.description = 'Busca usuarios com filtros e paginacao.'
     try {
         const pagination = getPaginationParams(request.query);
         const search = typeof request.query.search === "string" ? request.query.search.trim() : "";
@@ -86,6 +126,8 @@ userRouter.get("/search", token.authMiddleware, async (request: Request, respons
 });
 
 userRouter.get("/:id", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Users']
+    // #swagger.description = 'Busca usuario por id.'
     const id: number = parseInt(request.params.id);
     try {
         const user = await UserService.find(id);
@@ -99,6 +141,8 @@ userRouter.get("/:id", token.authMiddleware, async (request: Request, response: 
 });
 
 userRouter.post('/auth', async (req: Request, res: Response) => {
+    // #swagger.tags = ['Users']
+    // #swagger.description = 'Autentica usuario e retorna token.'
     const { email, password } = req.body;
 
     const user = await UserService.findOneBy({
@@ -106,8 +150,63 @@ userRouter.post('/auth', async (req: Request, res: Response) => {
     });
 
     if (user && await crypt.compare(password, user.password)) {
-        res.json({ userId: user.id, token: token.sign(user) });
+        const organizations = await OrganizationService.findByUserId(user.id);
+        const defaultOrg = organizations.find((o) => o.id === user.defaultOrgId) || organizations[0];
+
+        const payload: TokenPayload = {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            access: user.access,
+            organizationId: defaultOrg?.id,
+            organizationRole: defaultOrg?.role,
+        };
+
+        res.json({
+            userId: user.id,
+            token: token.sign(payload),
+            organizations,
+        });
     } else {
         return res.status(401).json({ error: 'Usuário não encontrado' });
+    }
+});
+
+// POST /auth/switch-org - Switch active organization
+userRouter.post('/auth/switch-org', token.authMiddleware, body("organizationId").isNumeric(), async (req: Request, res: Response) => {
+    // #swagger.tags = ['Users']
+    // #swagger.description = 'Troca a organizacao ativa do usuario.'
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+    try {
+        const userId = req.user?.id;
+        const { organizationId } = req.body;
+
+        const organizations = await OrganizationService.findByUserId(userId);
+        const targetOrg = organizations.find((o) => o.id === organizationId);
+
+        if (!targetOrg) {
+            return res.status(403).json({ error: "Você não é membro desta organização" });
+        }
+
+        await UserService.update(userId, { defaultOrgId: organizationId });
+
+        const payload: TokenPayload = {
+            id: userId,
+            email: req.user.email,
+            name: req.user.name,
+            access: req.user.access,
+            organizationId: targetOrg.id,
+            organizationRole: targetOrg.role,
+        };
+
+        res.json({
+            token: token.sign(payload),
+            organization: targetOrg,
+        });
+    } catch (error: any) {
+        return res.status(500).json(error.message);
     }
 });

@@ -9,6 +9,8 @@ import * as HabilityService from "./hability.service";
 export const habilityRouter = express.Router();
 
 habilityRouter.get("/:userId",  token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Habilities']
+    // #swagger.description = 'Lista habilidades de um usuario (paginado).'
     const userId: number = parseInt(request.params.userId);
     try {
         const pagination = getPaginationParams(request.query);
@@ -22,6 +24,8 @@ habilityRouter.get("/:userId",  token.authMiddleware, async (request: Request, r
 });
 
 habilityRouter.post("/:userId", token.authMiddleware, body("value").isString(), body("type").isNumeric(), async (request: Request, response: Response) => {
+    // #swagger.tags = ['Habilities']
+    // #swagger.description = 'Cria uma habilidade para o usuario autenticado.'
     try {
         const errors = validationResult(request);
         if (!errors.isEmpty()) {
@@ -40,6 +44,8 @@ habilityRouter.post("/:userId", token.authMiddleware, body("value").isString(), 
 });
 
 habilityRouter.delete("/:id", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Habilities']
+    // #swagger.description = 'Remove uma habilidade do usuario.'
     const id: number = parseInt(request.params.id);
     try {
         const userId = request.user?.id;

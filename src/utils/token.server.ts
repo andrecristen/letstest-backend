@@ -15,10 +15,19 @@ declare global {
     }
 }
 
+export type TokenPayload = {
+    id: number;
+    email: string;
+    name: string;
+    access: number;
+    organizationId?: number;
+    organizationRole?: string;
+};
+
 let token: any = {};
 
-token.sign = (user: User) => {
-    return jwt.sign(user, SECRET, { expiresIn: '8h' });
+token.sign = (payload: TokenPayload) => {
+    return jwt.sign(payload, SECRET, { expiresIn: '8h' });
 }
 
 token.verify = (rawToken: string) => {

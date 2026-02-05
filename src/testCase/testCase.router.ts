@@ -7,10 +7,14 @@ import { db } from "../utils/db.server";
 
 import * as TestCaseService from "./testCase.service";
 import * as ProjectService from "../project/project.service";
+import { assertWithinLimit, LimitExceededError } from "../billing/billing.service";
+import { dispatchEvent } from "../webhook/webhook.service";
 
 export const testCaseRouter = express.Router();
 
 testCaseRouter.get("/project/:projectId", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['TestCases']
+    // #swagger.description = 'Lista casos de teste de um projeto (paginado).'
     try {
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
         const projectId: number = parseInt(request.params.projectId);
@@ -33,6 +37,8 @@ testCaseRouter.get("/project/:projectId", token.authMiddleware, async (request: 
 });
 
 testCaseRouter.get("/project/:projectId/assigned", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['TestCases']
+    // #swagger.description = 'Lista casos de teste designados ao usuario (paginado).'
     try {
         const projectId: number = parseInt(request.params.projectId);
         if (!projectId) {
@@ -62,6 +68,8 @@ testCaseRouter.get("/project/:projectId/assigned", token.authMiddleware, async (
 });
 
 testCaseRouter.post("/:id/assignment/start", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['TestCases']
+    // #swagger.description = 'Inicia a execucao de um caso de teste designado.'
     try {
         const testCaseId: number = parseInt(request.params.id);
         const userId = request.user?.id;
@@ -88,6 +96,8 @@ testCaseRouter.post("/:id/assignment/start", token.authMiddleware, async (reques
 });
 
 testCaseRouter.post("/:id/assignment/pause", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['TestCases']
+    // #swagger.description = 'Pausa a execucao de um caso de teste.'
     try {
         const testCaseId: number = parseInt(request.params.id);
         const userId = request.user?.id;
@@ -117,6 +127,8 @@ testCaseRouter.post("/:id/assignment/pause", token.authMiddleware, async (reques
 });
 
 testCaseRouter.post("/:id/assignment/resume", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['TestCases']
+    // #swagger.description = 'Retoma a execucao de um caso de teste.'
     try {
         const testCaseId: number = parseInt(request.params.id);
         const userId = request.user?.id;
@@ -150,6 +162,8 @@ testCaseRouter.post("/:id/assignment/resume", token.authMiddleware, async (reque
 });
 
 testCaseRouter.post("/:id/assignment/finish", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['TestCases']
+    // #swagger.description = 'Finaliza a execucao de um caso de teste.'
     try {
         const testCaseId: number = parseInt(request.params.id);
         const userId = request.user?.id;
@@ -176,6 +190,8 @@ testCaseRouter.post("/:id/assignment/finish", token.authMiddleware, async (reque
 });
 
 testCaseRouter.get("/:id", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['TestCases']
+    // #swagger.description = 'Busca um caso de teste por id.'
     const id: number = parseInt(request.params.id);
     try {
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
@@ -191,17 +207,30 @@ testCaseRouter.get("/:id", token.authMiddleware, async (request: Request, respon
 });
 
 testCaseRouter.post("/:projectId", token.authMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
+    // #swagger.tags = ['TestCases']
+    // #swagger.description = 'Cria um caso de teste no projeto.'
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });
     }
     try {
         const projectId: number = parseInt(request.params.projectId);
-        //@todo adiconar validações para ver se usuário está no projeto (gerente apenas)
+        const userId = request.user?.id;
         const project = await ProjectService.find(projectId);
         if (!project) {
             return response.status(404).json("Projeto não encontrado");
         }
+        const isManager = await db.involvement.findFirst({
+            where: {
+                projectId: projectId,
+                userId,
+                type: 2,
+            },
+        });
+        if (project.creatorId !== userId && !isManager) {
+            return response.status(403).json("Você não tem permissão para criar casos de teste");
+        }
+        await assertWithinLimit("test_cases", { organizationId: project.organizationId, projectId, increment: 1 });
         if (project.approvalEnabled && project.approvalScenarioEnabled) {
             if (!request.body.testScenarioId) {
                 return response.status(409).json("Cenario de Teste aprovado e obrigatorio");
@@ -220,13 +249,30 @@ testCaseRouter.post("/:projectId", token.authMiddleware, body("name").isString()
             testCaseData.dueDate = new Date(testCaseData.dueDate);
         }
         const newTestCase = await TestCaseService.create(testCaseData);
+
+        dispatchEvent(project.organizationId, "test_case.created", {
+            id: newTestCase.id,
+            projectId: newTestCase.projectId,
+            name: newTestCase.name,
+        }).catch(console.error);
+
         return response.status(201).json(newTestCase);
     } catch (error: any) {
+        if (error instanceof LimitExceededError) {
+            return response.status(402).json({
+                code: "LIMIT_EXCEEDED",
+                metric: error.metric,
+                current: error.current,
+                limit: error.limit,
+            });
+        }
         return response.status(500).json(error.message);
     }
 });
 
 testCaseRouter.put("/:id/status", token.authMiddleware, body("status").isNumeric(), async (request: Request, response: Response) => {
+    // #swagger.tags = ['TestCases']
+    // #swagger.description = 'Atualiza o status de aprovacao do caso de teste.'
     const id: number = parseInt(request.params.id);
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
@@ -250,8 +296,7 @@ testCaseRouter.put("/:id/status", token.authMiddleware, body("status").isNumeric
             where: {
                 projectId: testCase.projectId,
                 userId,
-                type: 1,
-                situation: 2,
+                type: 2,
             },
         });
         if (project.creatorId !== userId && !isManager) {
@@ -282,6 +327,8 @@ testCaseRouter.put("/:id/status", token.authMiddleware, body("status").isNumeric
 });
 
 testCaseRouter.post("/:id/assign", token.authMiddleware, body("userIds").isArray(), async (request: Request, response: Response) => {
+    // #swagger.tags = ['TestCases']
+    // #swagger.description = 'Designa testadores para um caso de teste.'
     const id: number = parseInt(request.params.id);
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
@@ -301,8 +348,7 @@ testCaseRouter.post("/:id/assign", token.authMiddleware, body("userIds").isArray
             where: {
                 projectId: testCase.projectId,
                 userId,
-                type: 1,
-                situation: 2,
+                type: 2,
             },
         });
         if (project.creatorId !== userId && !isManager) {
@@ -334,6 +380,8 @@ testCaseRouter.post("/:id/assign", token.authMiddleware, body("userIds").isArray
 });
 
 testCaseRouter.put("/:id", token.authMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
+    // #swagger.tags = ['TestCases']
+    // #swagger.description = 'Atualiza um caso de teste (sem execucoes).'
     const id: number = parseInt(request.params.id);
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
@@ -344,7 +392,21 @@ testCaseRouter.put("/:id", token.authMiddleware, body("name").isString(), body("
         if (!testCase) {
             return response.status(404).json("Caso de Teste não encontrado");
         }
-        //@todo adiconar validações para ver se usuário está no projeto (gerente apenas)
+        const userId = request.user?.id;
+        const project = await ProjectService.find(testCase.projectId);
+        if (!project) {
+            return response.status(404).json("Projeto não encontrado");
+        }
+        const isManager = await db.involvement.findFirst({
+            where: {
+                projectId: testCase.projectId,
+                userId,
+                type: 2,
+            },
+        });
+        if (project.creatorId !== userId && !isManager) {
+            return response.status(403).json("Você não tem permissão para editar casos de teste");
+        }
         const executionCount = await db.testExecution.count({ where: { testCaseId: id } });
         if (executionCount > 0) {
             return response.status(409).json("Não é possível editar um caso com execuções");
@@ -363,6 +425,15 @@ testCaseRouter.put("/:id", token.authMiddleware, body("name").isString(), body("
             updatePayload.dueDate = new Date(updatePayload.dueDate);
         }
         const updateTestCase = await TestCaseService.update(id, updatePayload);
+
+        if (project?.organizationId) {
+            dispatchEvent(project.organizationId, "test_case.updated", {
+                id: updateTestCase.id,
+                projectId: updateTestCase.projectId,
+                name: updateTestCase.name,
+            }).catch(console.error);
+        }
+
         return response.status(200).json(updateTestCase);
     } catch (error: any) {
         return response.status(500).json(error.message);

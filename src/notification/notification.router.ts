@@ -19,6 +19,8 @@ const allowCronOrAuth = (request: Request, response: Response, next: () => void)
 };
 
 notificationRouter.get("/", token.authMiddleware, async (request: Request, response: Response) => {
+  // #swagger.tags = ['Notifications']
+  // #swagger.description = 'Lista notificacoes do usuario autenticado (paginado).'
   try {
     const userId = request.user?.id;
     if (!userId) return response.status(401).json({ error: "Usuario nao autenticado" });
@@ -44,6 +46,8 @@ notificationRouter.get("/", token.authMiddleware, async (request: Request, respo
 });
 
 notificationRouter.get("/unread-count", token.authMiddleware, async (request: Request, response: Response) => {
+  // #swagger.tags = ['Notifications']
+  // #swagger.description = 'Retorna a quantidade de notificacoes nao lidas do usuario.'
   try {
     const userId = request.user?.id;
     if (!userId) return response.status(401).json({ error: "Usuario nao autenticado" });
@@ -55,6 +59,8 @@ notificationRouter.get("/unread-count", token.authMiddleware, async (request: Re
 });
 
 notificationRouter.put("/read/:notificationId", token.authMiddleware, async (request: Request, response: Response) => {
+  // #swagger.tags = ['Notifications']
+  // #swagger.description = 'Marca uma notificacao especifica como lida.'
   try {
     const userId = request.user?.id;
     if (!userId) return response.status(401).json({ error: "Usuario nao autenticado" });
@@ -72,6 +78,8 @@ notificationRouter.put("/read/:notificationId", token.authMiddleware, async (req
 });
 
 notificationRouter.put("/read-all", token.authMiddleware, async (request: Request, response: Response) => {
+  // #swagger.tags = ['Notifications']
+  // #swagger.description = 'Marca todas as notificacoes do usuario como lidas.'
   try {
     const userId = request.user?.id;
     if (!userId) return response.status(401).json({ error: "Usuario nao autenticado" });
@@ -91,6 +99,8 @@ notificationRouter.post(
   body("projectId").isNumeric(),
   body("dueDate").isString(),
   async (request: Request, response: Response) => {
+    // #swagger.tags = ['Notifications']
+    // #swagger.description = 'Dispara notificacao de prazo excedido para um projeto.'
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
       return response.status(400).json({ errors: errors.array() });
@@ -108,6 +118,8 @@ notificationRouter.post(
 );
 
 notificationRouter.post("/deadline/run", allowCronOrAuth, async (_request: Request, response: Response) => {
+  // #swagger.tags = ['Notifications']
+  // #swagger.description = 'Executa verificacoes de prazos (cron ou autenticado).'
   try {
     const result = await NotificationService.runDeadlineChecks();
     return response.status(200).json(result);

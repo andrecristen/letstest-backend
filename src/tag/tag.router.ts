@@ -2,6 +2,7 @@ import express from "express";
 import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
+import { tenantMiddleware } from "../utils/tenant.middleware";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 
 import * as TagService from "./tag.service";
@@ -11,6 +12,8 @@ import { Tag, TagValue } from "@prisma/client";
 export const tagRouter = express.Router();
 
 tagRouter.get("/project/:projectId", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Tags']
+    // #swagger.description = 'Lista tags de um projeto (inclui tags publicas da org).'
     const projectId: number = parseInt(request.params.projectId);
     try {
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
@@ -27,6 +30,8 @@ tagRouter.get("/project/:projectId", token.authMiddleware, async (request: Reque
 });
 
 tagRouter.get("/:id", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Tags']
+    // #swagger.description = 'Busca uma tag por id.'
     const id: number = parseInt(request.params.id);
     try {
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador) ou se o tags é pública
@@ -40,7 +45,9 @@ tagRouter.get("/:id", token.authMiddleware, async (request: Request, response: R
     }
 });
 
-tagRouter.post("/:projectId", token.authMiddleware, body("name").isString(), async (request: Request, response: Response) => {
+tagRouter.post("/:projectId", token.authMiddleware, tenantMiddleware, body("name").isString(), async (request: Request, response: Response) => {
+    // #swagger.tags = ['Tags']
+    // #swagger.description = 'Cria uma tag para um projeto.'
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });
@@ -54,7 +61,7 @@ tagRouter.post("/:projectId", token.authMiddleware, body("name").isString(), asy
         const body = request.body
         const tagValues = request.body.tagValues || [];
         delete body.tagValues;
-        const tagData = { ...body, situation: TagService.TagSituationEnum.use, projectId: projectId };
+        const tagData = { ...body, situation: TagService.TagSituationEnum.use, projectId: projectId, organizationId: request.organizationId };
         const newTag = await TagService.create(tagData);
         if (newTag) {
             processAddTagValues(tagValues, newTag.id);
@@ -73,6 +80,8 @@ async function processAddTagValues(tagValues: TagValue[], newTagId: number) {
 }
 
 tagRouter.put("/:id", token.authMiddleware, body("name").isString(), body("situation").isNumeric(), async (request: Request, response: Response) => {
+    // #swagger.tags = ['Tags']
+    // #swagger.description = 'Atualiza dados de uma tag.'
     const id: number = parseInt(request.params.id);
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
@@ -107,6 +116,8 @@ async function processEditTagValues(tagValues: TagValue[],updatedTagId: number) 
 }
 
 tagRouter.post("/value/:tagId", token.authMiddleware, body("name").isString(), async (request: Request, response: Response) => {
+    // #swagger.tags = ['TagValues']
+    // #swagger.description = 'Cria um valor para uma tag.'
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });
@@ -126,6 +137,8 @@ tagRouter.post("/value/:tagId", token.authMiddleware, body("name").isString(), a
 });
 
 tagRouter.put("/value/:tagValueid", token.authMiddleware, body("name").isString(), body("situation").isNumeric(), async (request: Request, response: Response) => {
+    // #swagger.tags = ['TagValues']
+    // #swagger.description = 'Atualiza um valor de tag.'
     const id: number = parseInt(request.params.tagValueid);
     const errors = validationResult(request);
     if (!errors.isEmpty()) {

@@ -6,6 +6,8 @@ import * as NotificationSettingsService from "./notificationSettings.service";
 
 export const notificationSettingsRouter = express.Router();
 
+// #swagger.tags = ['NotificationSettings']
+// #swagger.description = 'Obtem configuracoes de notificacao de um projeto.'
 notificationSettingsRouter.get("/:projectId", token.authMiddleware, async (request: Request, response: Response) => {
   try {
     const projectId = parseInt(request.params.projectId, 10);
@@ -29,6 +31,8 @@ notificationSettingsRouter.put(
   body("notifyEmail").optional().isBoolean(),
   body("notifyInApp").optional().isBoolean(),
   async (request: Request, response: Response) => {
+    // #swagger.tags = ['NotificationSettings']
+    // #swagger.description = 'Atualiza configuracoes de notificacao do projeto.'
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
       return response.status(400).json({ errors: errors.array() });

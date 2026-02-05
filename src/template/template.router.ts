@@ -2,6 +2,7 @@ import express from "express";
 import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
+import { tenantMiddleware } from "../utils/tenant.middleware";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 
 import * as TemplateService from "./template.service";
@@ -9,6 +10,8 @@ import * as TemplateService from "./template.service";
 export const templateRouter = express.Router();
 
 templateRouter.get("/defaults/:type", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Templates']
+    // #swagger.description = 'Lista templates padrao por tipo (paginado).'
     const type: number = parseInt(request.params.type);
     try {
         const pagination = getPaginationParams(request.query);
@@ -22,6 +25,8 @@ templateRouter.get("/defaults/:type", token.authMiddleware, async (request: Requ
 });
 
 templateRouter.get("/:projectId/all", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Templates']
+    // #swagger.description = 'Lista templates do projeto e templates padrao (paginado).'
     const projectId: number = parseInt(request.params.projectId);
     try {
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
@@ -38,6 +43,8 @@ templateRouter.get("/:projectId/all", token.authMiddleware, async (request: Requ
 });
 
 templateRouter.get("/:projectId/:type", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Templates']
+    // #swagger.description = 'Lista templates do projeto por tipo (inclui padroes).'
     const projectId: number = parseInt(request.params.projectId);
     const type: number = parseInt(request.params.type);
     try {
@@ -61,6 +68,8 @@ templateRouter.get("/:projectId/:type", token.authMiddleware, async (request: Re
 });
 
 templateRouter.get("/:templateId", token.authMiddleware, async (request: Request, response: Response) => {
+    // #swagger.tags = ['Templates']
+    // #swagger.description = 'Busca um template por id.'
     const id: number = parseInt(request.params.templateId);
     try {
         //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador) ou se o template é público
@@ -74,7 +83,9 @@ templateRouter.get("/:templateId", token.authMiddleware, async (request: Request
     }
 });
 
-templateRouter.post("/:projectId", token.authMiddleware, body("name").isString(), body("description").isString(), body("type").isNumeric(), body("data").isObject(), async (request: Request, response: Response) => {
+templateRouter.post("/:projectId", token.authMiddleware, tenantMiddleware, body("name").isString(), body("description").isString(), body("type").isNumeric(), body("data").isObject(), async (request: Request, response: Response) => {
+    // #swagger.tags = ['Templates']
+    // #swagger.description = 'Cria um template no projeto.'
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });
@@ -84,8 +95,7 @@ templateRouter.post("/:projectId", token.authMiddleware, body("name").isString()
         if (!projectId) {
             return response.status(404).json({ error: "Projeto não definido" });
         }
-        //@todo adiconar validações para ver se usuário está no projeto (gerente apenas)
-        const projectData = { ...request.body, projectId: projectId };
+        const projectData = { ...request.body, projectId: projectId, organizationId: request.organizationId };
         const newTemplate = await TemplateService.create(projectData);
         return response.status(201).json(newTemplate);
     } catch (error: any) {

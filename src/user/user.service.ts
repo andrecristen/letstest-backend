@@ -8,6 +8,7 @@ export type User = {
     bio?: string|null;
     password: string;
     access: number;
+    defaultOrgId?: number | null;
 };
 
 export const create = async (user: Omit<User, "id">): Promise<User> => {
@@ -25,6 +26,7 @@ export const create = async (user: Omit<User, "id">): Promise<User> => {
             name: true,
             password: true,
             access: true,
+            defaultOrgId: true,
         },
     });
 };
@@ -57,6 +59,7 @@ export const find = async (id: number): Promise<Omit<User, "password"> | null> =
             name: true,
             bio: true,
             access: true,
+            defaultOrgId: true,
         },
         where: {
             id,

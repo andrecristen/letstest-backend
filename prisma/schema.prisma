@@ -7,6 +7,62 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// =============================================================================
+// Organization (Multi-Tenancy)
+// =============================================================================
+
+model Organization {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  plan      String   @default("free")
+  logo      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships OrganizationMember[]
+  invitations OrganizationInvite[]
+  projects    Project[]
+  templates   Template[]
+  tags        Tag[]
+  tagValues   TagValue[]
+  notifications Notification[]
+  files       File[]
+  subscription Subscription?
+  apiKeys     ApiKey[]
+  webhooks    Webhook[]
+}
+
+model OrganizationMember {
+  id             Int          @id @default(autoincrement())
+  organizationId Int
+  userId         Int
+  role           String       @default("member")
+  joinedAt       DateTime     @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@unique([organizationId, userId])
+}
+
+model OrganizationInvite {
+  id             Int       @id @default(autoincrement())
+  organizationId Int
+  email          String
+  role           String    @default("member")
+  token          String    @unique
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+}
+
+// =============================================================================
+// User
+// =============================================================================
+
 model User {
   id             Int             @id @default(autoincrement())
   email          String          @unique
@@ -14,6 +70,7 @@ model User {
   password       String
   bio            String?
   access         Int
+  defaultOrgId   Int?
   involvements   Involvement[]
   projects       Project[]
   testExecutions TestExecution[]
@@ -21,79 +78,89 @@ model User {
   devices        Device[]
   reports        Report[]
   notifications  NotificationRecipient[]
-  testCaseAssignments TestCaseAssignment[] @relation("TestCaseAssignee")
+  memberships    OrganizationMember[]
+  testCaseAssignments     TestCaseAssignment[] @relation("TestCaseAssignee")
   testCaseAssignmentsMade TestCaseAssignment[] @relation("TestCaseAssigner")
 }
 
+// =============================================================================
+// Project & Test Management
+// =============================================================================
+
 model Project {
-  id            Int            @id @default(autoincrement())
-  name          String
-  description   String
-  visibility    Int
-  situation     Int
-  dueDate       DateTime?
-  approvalEnabled Boolean @default(false)
-  approvalScenarioEnabled Boolean @default(false)
-  approvalTestCaseEnabled Boolean @default(false)
-  creatorId     Int
-  creator       User           @relation(fields: [creatorId], references: [id])
-  environments  Environment[]
-  involvements  Involvement[]
-  testCases     TestCase[]
-  templates     Template[]
-  tags          Tag[]
-  tagValues     TagValue[]
-  testScenarios TestScenario[]
-  notificationSettings NotificationSettings?
+  id                      Int            @id @default(autoincrement())
+  name                    String
+  description             String
+  visibility              Int
+  situation               Int
+  dueDate                 DateTime?
+  approvalEnabled         Boolean        @default(false)
+  approvalScenarioEnabled Boolean        @default(false)
+  approvalTestCaseEnabled Boolean        @default(false)
+  creatorId               Int
+  organizationId          Int
+  creator                 User           @relation(fields: [creatorId], references: [id])
+  organization            Organization   @relation(fields: [organizationId], references: [id])
+  environments            Environment[]
+  involvements            Involvement[]
+  testCases               TestCase[]
+  templates               Template[]
+  tags                    Tag[]
+  tagValues               TagValue[]
+  testScenarios           TestScenario[]
+  notificationSettings    NotificationSettings?
+
+  @@index([organizationId])
+  @@index([organizationId, creatorId])
 }
 
 model TestScenario {
-  id        Int        @id @default(autoincrement())
-  data      Json
-  name      String
-  projectId Int
-  approvalStatus Int @default(1)
-  reviewedAt DateTime?
-  reviewedById Int?
-  approvedAt DateTime?
-  approvedById Int?
-  project   Project    @relation(fields: [projectId], references: [id])
-  testCases TestCase[]
+  id             Int        @id @default(autoincrement())
+  data           Json
+  name           String
+  projectId      Int
+  approvalStatus Int        @default(1)
+  reviewedAt     DateTime?
+  reviewedById   Int?
+  approvedAt     DateTime?
+  approvedById   Int?
+  project        Project    @relation(fields: [projectId], references: [id])
+  testCases      TestCase[]
 }
 
 model TestCase {
-  id             Int             @id @default(autoincrement())
+  id             Int              @id @default(autoincrement())
   data           Json
   name           String
   testScenarioId Int?
   projectId      Int
   environmentId  Int?
   dueDate        DateTime?
-  approvalStatus Int @default(1)
-  reviewedAt DateTime?
-  reviewedById Int?
-  approvedAt DateTime?
-  approvedById Int?
-  testScenario   TestScenario?   @relation(fields: [testScenarioId], references: [id])
-  project        Project         @relation(fields: [projectId], references: [id])
-  environment    Environment?    @relation(fields: [environmentId], references: [id])
+  approvalStatus Int              @default(1)
+  reviewedAt     DateTime?
+  reviewedById   Int?
+  approvedAt     DateTime?
+  approvedById   Int?
+  testScenario   TestScenario?    @relation(fields: [testScenarioId], references: [id])
+  project        Project          @relation(fields: [projectId], references: [id])
+  environment    Environment?     @relation(fields: [environmentId], references: [id])
   testExecutions TestExecution[]
   assignments    TestCaseAssignment[]
 }
 
 model TestCaseAssignment {
-  id           Int      @id @default(autoincrement())
-  testCaseId   Int
-  userId       Int
-  assignedById Int?
-  assignedAt   DateTime @default(now())
-  startedAt    DateTime?
-  lastPausedAt DateTime?
-  totalPausedSeconds Int @default(0)
-  finishedAt   DateTime?
-  testCase     TestCase @relation(fields: [testCaseId], references: [id])
-  user         User     @relation("TestCaseAssignee", fields: [userId], references: [id])
-  assignedBy   User?    @relation("TestCaseAssigner", fields: [assignedById], references: [id])
+  id                 Int       @id @default(autoincrement())
+  testCaseId         Int
+  userId             Int
+  assignedById       Int?
+  assignedAt         DateTime  @default(now())
+  startedAt          DateTime?
+  lastPausedAt       DateTime?
+  totalPausedSeconds Int       @default(0)
+  finishedAt         DateTime?
+  testCase           TestCase  @relation(fields: [testCaseId], references: [id])
+  user               User      @relation("TestCaseAssignee", fields: [userId], references: [id])
+  assignedBy         User?     @relation("TestCaseAssigner", fields: [assignedById], references: [id])
 
   @@unique([testCaseId, userId])
 }
@@ -110,29 +177,46 @@ model Environment {
 
 model Involvement {
   id        Int     @id @default(autoincrement())
-  situation Int
   type      Int
   userId    Int
   projectId Int
   project   Project @relation(fields: [projectId], references: [id])
   user      User    @relation(fields: [userId], references: [id])
+
+  @@unique([projectId, userId, type])
 }
 
+// =============================================================================
+// Templates, Tags, Files
+// =============================================================================
+
 model Template {
-  id          Int      @id @default(autoincrement())
-  name        String
-  description String
-  data        Json
-  type        Int
-  projectId   Int?
-  project     Project? @relation(fields: [projectId], references: [id])
+  id             Int           @id @default(autoincrement())
+  name           String
+  description    String
+  data           Json
+  type           Int
+  projectId      Int?
+  organizationId Int?
+  project        Project?      @relation(fields: [projectId], references: [id])
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
 }
 
 model File {
-  id     Int    @id @default(autoincrement())
-  name   String
-  bucket String
+  id             Int           @id @default(autoincrement())
+  name           String
+  bucket         String
+  organizationId Int?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
 }
+
+// =============================================================================
+// Test Execution & Reports
+// =============================================================================
 
 model TestExecution {
   id         Int       @id @default(autoincrement())
@@ -147,6 +231,10 @@ model TestExecution {
   device     Device?   @relation(fields: [deviceId], references: [id])
   reports    Report[]
 }
+
+// =============================================================================
+// User Profile (Personal - no org scope)
+// =============================================================================
 
 model Hability {
   id     Int    @id @default(autoincrement())
@@ -178,62 +266,169 @@ model Report {
   user            User?          @relation(fields: [userId], references: [id])
 }
 
+// =============================================================================
+// Notifications
+// =============================================================================
+
 model Notification {
-  id         Int                     @id @default(autoincrement())
-  type       Int
-  title      String
-  message    String
-  metadata   Json?
-  projectId  Int?
-  createdAt  DateTime                @default(now())
-  recipients NotificationRecipient[]
+  id             Int                     @id @default(autoincrement())
+  type           Int
+  title          String
+  message        String
+  metadata       Json?
+  projectId      Int?
+  organizationId Int?
+  createdAt      DateTime                @default(now())
+  organization   Organization?           @relation(fields: [organizationId], references: [id])
+  recipients     NotificationRecipient[]
+
+  @@index([organizationId])
 }
 
 model NotificationRecipient {
-  id              Int           @id @default(autoincrement())
-  userId          Int
-  notificationId  Int
-  readAt          DateTime?
-  emailSentAt     DateTime?
-  emailError      String?
-  user            User          @relation(fields: [userId], references: [id])
-  notification    Notification  @relation(fields: [notificationId], references: [id])
+  id             Int          @id @default(autoincrement())
+  userId         Int
+  notificationId Int
+  readAt         DateTime?
+  emailSentAt    DateTime?
+  emailError     String?
+  user           User         @relation(fields: [userId], references: [id])
+  notification   Notification @relation(fields: [notificationId], references: [id])
 
   @@unique([userId, notificationId])
 }
 
 model NotificationSettings {
-  id                      Int      @id @default(autoincrement())
-  projectId               Int      @unique
-  enableExecutionRejected Boolean  @default(true)
-  enableInviteAccepted    Boolean  @default(true)
-  enableInviteReceived    Boolean  @default(true)
-  enableDeadlineExceeded  Boolean  @default(true)
-  enableDeadlineWarning   Boolean  @default(false)
-  deadlineWarningDays     Int      @default(0)
-  notifyEmail             Boolean  @default(true)
-  notifyInApp             Boolean  @default(true)
-  project                 Project  @relation(fields: [projectId], references: [id])
+  id                      Int     @id @default(autoincrement())
+  projectId               Int     @unique
+  enableExecutionRejected Boolean @default(true)
+  enableInviteAccepted    Boolean @default(true)
+  enableInviteReceived    Boolean @default(true)
+  enableDeadlineExceeded  Boolean @default(true)
+  enableDeadlineWarning   Boolean @default(false)
+  deadlineWarningDays     Int     @default(0)
+  notifyEmail             Boolean @default(true)
+  notifyInApp             Boolean @default(true)
+  project                 Project @relation(fields: [projectId], references: [id])
 }
 
+// =============================================================================
+// Tags
+// =============================================================================
+
 model Tag {
-  id         Int        @id @default(autoincrement())
-  name       String
-  situation  Int
-  commentary String?
-  projectId  Int?
-  project    Project?   @relation(fields: [projectId], references: [id])
-  tagValues  TagValue[]
+  id             Int           @id @default(autoincrement())
+  name           String
+  situation      Int
+  commentary     String?
+  projectId      Int?
+  organizationId Int?
+  project        Project?      @relation(fields: [projectId], references: [id])
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  tagValues      TagValue[]
+
+  @@index([organizationId])
 }
 
 model TagValue {
-  id         Int      @id @default(autoincrement())
-  name       String
-  situation  Int
-  commentary String?
-  data       Json?
-  projectId  Int?
-  tagId      Int
-  project    Project? @relation(fields: [projectId], references: [id])
-  tag        Tag      @relation(fields: [tagId], references: [id])
+  id             Int           @id @default(autoincrement())
+  name           String
+  situation      Int
+  commentary     String?
+  data           Json?
+  projectId      Int?
+  tagId          Int
+  organizationId Int?
+  project        Project?      @relation(fields: [projectId], references: [id])
+  tag            Tag           @relation(fields: [tagId], references: [id])
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+}
+
+// =============================================================================
+// Billing
+// =============================================================================
+
+model Subscription {
+  id                   Int      @id @default(autoincrement())
+  organizationId       Int      @unique
+  stripeCustomerId     String?  @unique
+  stripeSubscriptionId String?  @unique
+  plan                 String   @default("free")
+  status               String   @default("active")
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  usageRecords UsageRecord[]
+}
+
+model UsageRecord {
+  id             Int          @id @default(autoincrement())
+  subscriptionId Int
+  metric         String
+  quantity       Int
+  recordedAt     DateTime     @default(now())
+
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+
+  @@index([subscriptionId, metric, recordedAt])
+}
+
+// =============================================================================
+// API Keys & Webhooks
+// =============================================================================
+
+model ApiKey {
+  id             Int          @id @default(autoincrement())
+  organizationId Int
+  name           String
+  keyHash        String       @unique
+  keyPrefix      String
+  scopes         String[]
+  lastUsedAt     DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime     @default(now())
+  createdById    Int
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([keyHash])
+  @@index([organizationId])
+}
+
+model Webhook {
+  id             Int          @id @default(autoincrement())
+  organizationId Int
+  url            String
+  secret         String
+  events         String[]
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  deliveries     WebhookDelivery[]
+
+  @@index([organizationId])
+}
+
+model WebhookDelivery {
+  id             Int       @id @default(autoincrement())
+  webhookId      Int
+  event          String
+  payload        Json
+  responseStatus Int?
+  responseBody   String?
+  deliveredAt    DateTime?
+  attempts       Int       @default(0)
+  nextRetryAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  webhook        Webhook   @relation(fields: [webhookId], references: [id])
+
+  @@index([webhookId, createdAt])
 }
