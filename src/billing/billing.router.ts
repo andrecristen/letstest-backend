@@ -15,6 +15,8 @@ interface RequestWithRawBody extends Request {
 export const billingRouter = express.Router();
 
 billingRouter.get("/plans", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+  // #swagger.tags = ['Billing']
+  // #swagger.description = 'Lista planos de assinatura disponiveis.'
   if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     const plans = await getBillingPlans();
@@ -25,6 +27,8 @@ billingRouter.get("/plans", token.authMiddleware, tenantMiddleware, async (reque
 });
 
 billingRouter.get("/subscription", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+  // #swagger.tags = ['Billing']
+  // #swagger.description = 'Retorna resumo da assinatura da organizacao.'
   if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     if (!requireOrgRole(request, response, ["owner", "admin"])) return;
@@ -37,6 +41,8 @@ billingRouter.get("/subscription", token.authMiddleware, tenantMiddleware, async
 });
 
 billingRouter.get("/usage", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+  // #swagger.tags = ['Billing']
+  // #swagger.description = 'Retorna resumo de uso da organizacao.'
   if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     if (!requireOrgRole(request, response, ["owner", "admin"])) return;
@@ -49,6 +55,8 @@ billingRouter.get("/usage", token.authMiddleware, tenantMiddleware, async (reque
 });
 
 billingRouter.post("/checkout", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+  // #swagger.tags = ['Billing']
+  // #swagger.description = 'Cria sessao de checkout no Stripe.'
   if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     if (!requireOrgRole(request, response, ["owner", "admin"])) return;
@@ -68,6 +76,8 @@ billingRouter.post("/checkout", token.authMiddleware, tenantMiddleware, async (r
 });
 
 billingRouter.post("/portal", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+  // #swagger.tags = ['Billing']
+  // #swagger.description = 'Cria sessao do portal de billing no Stripe.'
   if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     if (!requireOrgRole(request, response, ["owner", "admin"])) return;
@@ -83,6 +93,8 @@ billingRouter.post("/portal", token.authMiddleware, tenantMiddleware, async (req
 });
 
 billingRouter.post("/plans/sync", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+  // #swagger.tags = ['Billing']
+  // #swagger.description = 'Sincroniza planos a partir do Stripe.'
   if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     if (!requireOrgRole(request, response, ["owner", "admin"])) return;
@@ -97,6 +109,8 @@ billingRouter.post("/plans/sync", token.authMiddleware, tenantMiddleware, async 
 });
 
 billingRouter.post("/webhook", async (request: RequestWithRawBody, response: Response) => {
+  // #swagger.tags = ['Billing']
+  // #swagger.description = 'Recebe webhook do Stripe.'
   if (!stripeConfig.webhookSecret) {
     return response.status(400).json({ error: "Webhook secret not configured" });
   }

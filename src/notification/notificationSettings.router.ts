@@ -8,9 +8,9 @@ import * as NotificationSettingsService from "./notificationSettings.service";
 
 export const notificationSettingsRouter = express.Router();
 
-// #swagger.tags = ['NotificationSettings']
-// #swagger.description = 'Obtem configuracoes de notificacao de um projeto.'
 notificationSettingsRouter.get("/:projectId", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+  // #swagger.tags = ['NotificationSettings']
+  // #swagger.description = 'Obtem configuracoes de notificacao de um projeto.'
   if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     const projectId = parseInt(request.params.projectId, 10);

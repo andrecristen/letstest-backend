@@ -35,6 +35,8 @@ const parseBoolean = (value: unknown): boolean | undefined => {
 export const billingAdminRouter = express.Router();
 
 billingAdminRouter.get("/billing/plans", token.authMiddleware, async (request: Request, response: Response) => {
+  // #swagger.tags = ['BillingAdmin']
+  // #swagger.description = 'Lista todos os planos de billing (admin).'
   if (!requireSystemAccess(request, response)) return;
   try {
     const plans = await db.billingPlan.findMany({
@@ -47,6 +49,8 @@ billingAdminRouter.get("/billing/plans", token.authMiddleware, async (request: R
 });
 
 billingAdminRouter.post("/billing/plans/sync", token.authMiddleware, async (request: Request, response: Response) => {
+  // #swagger.tags = ['BillingAdmin']
+  // #swagger.description = 'Sincroniza planos do Stripe (admin).'
   if (!requireSystemAccess(request, response)) return;
   try {
     const plans = await syncPlansFromStripe({ allowEmpty: true });
@@ -57,6 +61,8 @@ billingAdminRouter.post("/billing/plans/sync", token.authMiddleware, async (requ
 });
 
 billingAdminRouter.patch("/billing/plans/:id", token.authMiddleware, async (request: Request, response: Response) => {
+  // #swagger.tags = ['BillingAdmin']
+  // #swagger.description = 'Atualiza um plano de billing (admin).'
   if (!requireSystemAccess(request, response)) return;
   const id = Number(request.params.id);
   if (!Number.isFinite(id)) {
