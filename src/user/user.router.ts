@@ -229,6 +229,10 @@ userRouter.post('/auth/refresh', body("refreshToken").isString(), body("organiza
         const requestedOrg = Number.isFinite(Number(organizationId))
             ? organizations.find((o) => o.id === Number(organizationId))
             : undefined;
+        if (requestedOrg && user.defaultOrgId !== requestedOrg.id) {
+            await UserService.update(user.id, { defaultOrgId: requestedOrg.id });
+            user.defaultOrgId = requestedOrg.id;
+        }
         const defaultOrg = requestedOrg || organizations.find((o) => o.id === user.defaultOrgId) || organizations[0];
 
         const payload: TokenPayload = {
