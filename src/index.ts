@@ -105,7 +105,8 @@ app.use(express.json({
     }
   },
 }));
-app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use("/api/docs", swaggerUi.serve);
+app.get("/api/docs", swaggerUi.setup(swaggerDocument));
 app.use("/api/", generalLimiter);
 app.use("/api/users/auth", authLimiter);
 app.use("/api/users/register", authLimiter);
@@ -137,8 +138,10 @@ app.use("/api/v1/projects", publicProjectRouter);
 app.use("/api/v1/test-cases", publicTestCaseRouter);
 app.use("/api/v1/test-executions", publicTestExecutionRouter);
 
-httpServer.listen(PORT, () => {
-  console.log(`Listening on port ${PORT}`);
-});
+if (require.main === module) {
+  httpServer.listen(PORT, () => {
+    console.log(`Listening on port ${PORT}`);
+  });
+}
 
 export default app;
