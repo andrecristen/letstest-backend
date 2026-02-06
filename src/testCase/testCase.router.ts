@@ -4,6 +4,8 @@ import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 import { db } from "../utils/db.server";
+import { tenantMiddleware } from "../utils/tenant.middleware";
+import { ensureProjectAccess, getProjectIdByTestCase } from "../utils/permissions";
 
 import * as TestCaseService from "./testCase.service";
 import * as ProjectService from "../project/project.service";
@@ -12,15 +14,18 @@ import { dispatchEvent } from "../webhook/webhook.service";
 
 export const testCaseRouter = express.Router();
 
-testCaseRouter.get("/project/:projectId", token.authMiddleware, async (request: Request, response: Response) => {
+testCaseRouter.get("/project/:projectId", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Lista casos de teste de um projeto (paginado).'
     try {
-        //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
         const projectId: number = parseInt(request.params.projectId);
         if (!projectId) {
             return response.status(401).json({ error: "Projeto não identificado" });
         }
+        const access = await ensureProjectAccess(request, response, projectId, {
+            allowRoles: ["owner", "manager", "tester"],
+        });
+        if (!access) return;
         const pagination = getPaginationParams(request.query);
         const testScenarioId = request.query.testScenarioId ? parseInt(String(request.query.testScenarioId), 10) : null;
         const where: any = { projectId: projectId };
@@ -36,7 +41,7 @@ testCaseRouter.get("/project/:projectId", token.authMiddleware, async (request: 
     }
 });
 
-testCaseRouter.get("/project/:projectId/assigned", token.authMiddleware, async (request: Request, response: Response) => {
+testCaseRouter.get("/project/:projectId/assigned", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Lista casos de teste designados ao usuario (paginado).'
     try {
@@ -44,6 +49,10 @@ testCaseRouter.get("/project/:projectId/assigned", token.authMiddleware, async (
         if (!projectId) {
             return response.status(401).json({ error: "Projeto não identificado" });
         }
+        const access = await ensureProjectAccess(request, response, projectId, {
+            allowRoles: ["owner", "manager", "tester"],
+        });
+        if (!access) return;
         const userId = request.user?.id;
         const pagination = getPaginationParams(request.query);
         const testScenarioId = request.query.testScenarioId ? parseInt(String(request.query.testScenarioId), 10) : null;
@@ -67,7 +76,7 @@ testCaseRouter.get("/project/:projectId/assigned", token.authMiddleware, async (
     }
 });
 
-testCaseRouter.post("/:id/assignment/start", token.authMiddleware, async (request: Request, response: Response) => {
+testCaseRouter.post("/:id/assignment/start", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Inicia a execucao de um caso de teste designado.'
     try {
@@ -76,6 +85,14 @@ testCaseRouter.post("/:id/assignment/start", token.authMiddleware, async (reques
         if (!testCaseId || !userId) {
             return response.status(401).json({ error: "Usuário ou caso de teste não identificado" });
         }
+        const projectId = await getProjectIdByTestCase(testCaseId);
+        if (!projectId) {
+            return response.status(404).json({ error: "Caso de Teste não encontrado" });
+        }
+        const access = await ensureProjectAccess(request, response, projectId, {
+            allowRoles: ["owner", "manager", "tester"],
+        });
+        if (!access) return;
         const assignment = await db.testCaseAssignment.findUnique({
             where: { testCaseId_userId: { testCaseId, userId } },
         });
@@ -95,7 +112,7 @@ testCaseRouter.post("/:id/assignment/start", token.authMiddleware, async (reques
     }
 });
 
-testCaseRouter.post("/:id/assignment/pause", token.authMiddleware, async (request: Request, response: Response) => {
+testCaseRouter.post("/:id/assignment/pause", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Pausa a execucao de um caso de teste.'
     try {
@@ -104,6 +121,14 @@ testCaseRouter.post("/:id/assignment/pause", token.authMiddleware, async (reques
         if (!testCaseId || !userId) {
             return response.status(401).json({ error: "Usuário ou caso de teste não identificado" });
         }
+        const projectId = await getProjectIdByTestCase(testCaseId);
+        if (!projectId) {
+            return response.status(404).json({ error: "Caso de Teste não encontrado" });
+        }
+        const access = await ensureProjectAccess(request, response, projectId, {
+            allowRoles: ["owner", "manager", "tester"],
+        });
+        if (!access) return;
         const assignment = await db.testCaseAssignment.findUnique({
             where: { testCaseId_userId: { testCaseId, userId } },
         });
@@ -126,7 +151,7 @@ testCaseRouter.post("/:id/assignment/pause", token.authMiddleware, async (reques
     }
 });
 
-testCaseRouter.post("/:id/assignment/resume", token.authMiddleware, async (request: Request, response: Response) => {
+testCaseRouter.post("/:id/assignment/resume", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Retoma a execucao de um caso de teste.'
     try {
@@ -135,6 +160,14 @@ testCaseRouter.post("/:id/assignment/resume", token.authMiddleware, async (reque
         if (!testCaseId || !userId) {
             return response.status(401).json({ error: "Usuário ou caso de teste não identificado" });
         }
+        const projectId = await getProjectIdByTestCase(testCaseId);
+        if (!projectId) {
+            return response.status(404).json({ error: "Caso de Teste não encontrado" });
+        }
+        const access = await ensureProjectAccess(request, response, projectId, {
+            allowRoles: ["owner", "manager", "tester"],
+        });
+        if (!access) return;
         const assignment = await db.testCaseAssignment.findUnique({
             where: { testCaseId_userId: { testCaseId, userId } },
         });
@@ -161,7 +194,7 @@ testCaseRouter.post("/:id/assignment/resume", token.authMiddleware, async (reque
     }
 });
 
-testCaseRouter.post("/:id/assignment/finish", token.authMiddleware, async (request: Request, response: Response) => {
+testCaseRouter.post("/:id/assignment/finish", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Finaliza a execucao de um caso de teste.'
     try {
@@ -170,6 +203,14 @@ testCaseRouter.post("/:id/assignment/finish", token.authMiddleware, async (reque
         if (!testCaseId || !userId) {
             return response.status(401).json({ error: "Usuário ou caso de teste não identificado" });
         }
+        const projectId = await getProjectIdByTestCase(testCaseId);
+        if (!projectId) {
+            return response.status(404).json({ error: "Caso de Teste não encontrado" });
+        }
+        const access = await ensureProjectAccess(request, response, projectId, {
+            allowRoles: ["owner", "manager", "tester"],
+        });
+        if (!access) return;
         const assignment = await db.testCaseAssignment.findUnique({
             where: { testCaseId_userId: { testCaseId, userId } },
         });
@@ -189,15 +230,17 @@ testCaseRouter.post("/:id/assignment/finish", token.authMiddleware, async (reque
     }
 });
 
-testCaseRouter.get("/:id", token.authMiddleware, async (request: Request, response: Response) => {
+testCaseRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Busca um caso de teste por id.'
     const id: number = parseInt(request.params.id);
     try {
-        //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
-        //se for testador deve validar se está atribuido a ele esse teste
         const testCase = await TestCaseService.find(id);
         if (testCase) {
+            const access = await ensureProjectAccess(request, response, testCase.projectId, {
+                allowRoles: ["owner", "manager", "tester"],
+            });
+            if (!access) return;
             return response.status(200).json(testCase);
         }
         return response.status(404).json("Caso de Teste não encontrado");
@@ -206,7 +249,7 @@ testCaseRouter.get("/:id", token.authMiddleware, async (request: Request, respon
     }
 });
 
-testCaseRouter.post("/:projectId", token.authMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
+testCaseRouter.post("/:projectId", token.authMiddleware, tenantMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Cria um caso de teste no projeto.'
     const errors = validationResult(request);
@@ -216,6 +259,10 @@ testCaseRouter.post("/:projectId", token.authMiddleware, body("name").isString()
     try {
         const projectId: number = parseInt(request.params.projectId);
         const userId = request.user?.id;
+        const access = await ensureProjectAccess(request, response, projectId, {
+            allowRoles: ["owner", "manager"],
+        });
+        if (!access) return;
         const project = await ProjectService.find(projectId);
         if (!project) {
             return response.status(404).json("Projeto não encontrado");
@@ -270,7 +317,7 @@ testCaseRouter.post("/:projectId", token.authMiddleware, body("name").isString()
     }
 });
 
-testCaseRouter.put("/:id/status", token.authMiddleware, body("status").isNumeric(), async (request: Request, response: Response) => {
+testCaseRouter.put("/:id/status", token.authMiddleware, tenantMiddleware, body("status").isNumeric(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Atualiza o status de aprovacao do caso de teste.'
     const id: number = parseInt(request.params.id);
@@ -287,6 +334,10 @@ testCaseRouter.put("/:id/status", token.authMiddleware, body("status").isNumeric
         if (!testCase) {
             return response.status(404).json("Caso de Teste não encontrado");
         }
+        const access = await ensureProjectAccess(request, response, testCase.projectId, {
+            allowRoles: ["owner", "manager"],
+        });
+        if (!access) return;
         const project = await ProjectService.find(testCase.projectId);
         if (!project?.approvalEnabled || !project.approvalTestCaseEnabled) {
             return response.status(400).json("Workflow de aprovação não habilitado");
@@ -326,7 +377,7 @@ testCaseRouter.put("/:id/status", token.authMiddleware, body("status").isNumeric
     }
 });
 
-testCaseRouter.post("/:id/assign", token.authMiddleware, body("userIds").isArray(), async (request: Request, response: Response) => {
+testCaseRouter.post("/:id/assign", token.authMiddleware, tenantMiddleware, body("userIds").isArray(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Designa testadores para um caso de teste.'
     const id: number = parseInt(request.params.id);
@@ -339,6 +390,10 @@ testCaseRouter.post("/:id/assign", token.authMiddleware, body("userIds").isArray
         if (!testCase) {
             return response.status(404).json("Caso de Teste não encontrado");
         }
+        const access = await ensureProjectAccess(request, response, testCase.projectId, {
+            allowRoles: ["owner", "manager"],
+        });
+        if (!access) return;
         const project = await ProjectService.find(testCase.projectId);
         if (!project) {
             return response.status(404).json("Projeto não encontrado");
@@ -379,7 +434,7 @@ testCaseRouter.post("/:id/assign", token.authMiddleware, body("userIds").isArray
     }
 });
 
-testCaseRouter.put("/:id", token.authMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
+testCaseRouter.put("/:id", token.authMiddleware, tenantMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Atualiza um caso de teste (sem execucoes).'
     const id: number = parseInt(request.params.id);
@@ -392,6 +447,10 @@ testCaseRouter.put("/:id", token.authMiddleware, body("name").isString(), body("
         if (!testCase) {
             return response.status(404).json("Caso de Teste não encontrado");
         }
+        const access = await ensureProjectAccess(request, response, testCase.projectId, {
+            allowRoles: ["owner", "manager"],
+        });
+        if (!access) return;
         const userId = request.user?.id;
         const project = await ProjectService.find(testCase.projectId);
         if (!project) {

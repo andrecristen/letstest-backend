@@ -5,6 +5,8 @@ import { token } from "../utils/token.server";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 import * as NotificationService from "./notification.service";
 import { db } from "../utils/db.server";
+import { tenantMiddleware } from "../utils/tenant.middleware";
+import { ensureProjectAccess } from "../utils/permissions";
 
 export const notificationRouter = express.Router();
 
@@ -96,6 +98,7 @@ notificationRouter.put("/read-all", token.authMiddleware, async (request: Reques
 notificationRouter.post(
   "/deadline",
   token.authMiddleware,
+  tenantMiddleware,
   body("projectId").isNumeric(),
   body("dueDate").isString(),
   async (request: Request, response: Response) => {
@@ -109,6 +112,10 @@ notificationRouter.post(
       const projectId = parseInt(request.body.projectId, 10);
       const dueDate = String(request.body.dueDate);
       const userId = request.user?.id;
+      const access = await ensureProjectAccess(request, response, projectId, {
+        allowRoles: ["owner", "manager"],
+      });
+      if (!access) return;
       const notification = await NotificationService.notifyDeadlineExceeded(projectId, dueDate, userId);
       return response.status(201).json(notification);
     } catch (error: any) {

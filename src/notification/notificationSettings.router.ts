@@ -2,16 +2,22 @@ import express from "express";
 import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
+import { tenantMiddleware } from "../utils/tenant.middleware";
+import { ensureProjectAccess } from "../utils/permissions";
 import * as NotificationSettingsService from "./notificationSettings.service";
 
 export const notificationSettingsRouter = express.Router();
 
 // #swagger.tags = ['NotificationSettings']
 // #swagger.description = 'Obtem configuracoes de notificacao de um projeto.'
-notificationSettingsRouter.get("/:projectId", token.authMiddleware, async (request: Request, response: Response) => {
+notificationSettingsRouter.get("/:projectId", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
   try {
     const projectId = parseInt(request.params.projectId, 10);
     if (!projectId) return response.status(400).json({ error: "Projeto invalido" });
+    const access = await ensureProjectAccess(request, response, projectId, {
+      allowRoles: ["owner", "manager"],
+    });
+    if (!access) return;
     const settings = await NotificationSettingsService.getOrCreateByProject(projectId);
     return response.status(200).json(settings);
   } catch (error: any) {
@@ -22,6 +28,7 @@ notificationSettingsRouter.get("/:projectId", token.authMiddleware, async (reque
 notificationSettingsRouter.put(
   "/:projectId",
   token.authMiddleware,
+  tenantMiddleware,
   body("enableExecutionRejected").optional().isBoolean(),
   body("enableInviteAccepted").optional().isBoolean(),
   body("enableInviteReceived").optional().isBoolean(),
@@ -40,6 +47,10 @@ notificationSettingsRouter.put(
     try {
       const projectId = parseInt(request.params.projectId, 10);
       if (!projectId) return response.status(400).json({ error: "Projeto invalido" });
+      const access = await ensureProjectAccess(request, response, projectId, {
+        allowRoles: ["owner", "manager"],
+      });
+      if (!access) return;
       const settings = await NotificationSettingsService.updateByProject(projectId, request.body);
       return response.status(200).json(settings);
     } catch (error: any) {

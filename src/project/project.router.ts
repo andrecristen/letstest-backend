@@ -4,6 +4,7 @@ import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
+import { ensureProjectAccess } from "../utils/permissions";
 
 import * as ProjectService from "./project.service";
 import * as InvolvementService from "../involvement/involvement.service";
@@ -104,16 +105,18 @@ projectRouter.get("/public", token.authMiddleware, tenantMiddleware, async (requ
     }
 });
 
-projectRouter.get("/:id", token.authMiddleware, async (request: Request, response: Response) => {
+projectRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Projects']
     // #swagger.description = 'Busca um projeto por id.'
     const id: number = parseInt(request.params.id);
     try {
+        const access = await ensureProjectAccess(request, response, id, {
+            allowRoles: ["owner", "manager", "tester"],
+            allowPublic: true,
+        });
+        if (!access) return;
         const project = await ProjectService.find(id);
-        if (project) {
-            return response.status(200).json(project);
-        }
-        return response.status(404).json("Projeto não encontrado");
+        return response.status(200).json(project);
     } catch (error: any) {
         return response.status(500).json(error.message);
     }
@@ -149,12 +152,16 @@ projectRouter.post("/", token.authMiddleware, tenantMiddleware, body("name").isS
     }
 });
 
-projectRouter.put("/:id", token.authMiddleware, async (request: Request, response: Response) => {
+projectRouter.put("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Projects']
     // #swagger.description = 'Atualiza um projeto.'
     const id: number = parseInt(request.params.id);
     try {
         const userId = request.user?.id;
+        const access = await ensureProjectAccess(request, response, id, {
+            allowRoles: ["owner", "manager", "tester"],
+        });
+        if (!access) return;
         const project = await ProjectService.find(id);
         if (!project) {
             return response.status(404).json("Projeto não encontrado");
@@ -173,11 +180,16 @@ projectRouter.put("/:id", token.authMiddleware, async (request: Request, respons
     }
 });
 
-projectRouter.get("/:id/overview", token.authMiddleware, async (request: Request, response: Response) => {
+projectRouter.get("/:id/overview", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Projects']
     // #swagger.description = 'Retorna indicadores/resumo do projeto.'
     const id: number = parseInt(request.params.id);
     try {
+        const access = await ensureProjectAccess(request, response, id, {
+            allowRoles: ["owner", "manager", "tester"],
+            allowPublic: true,
+        });
+        if (!access) return;
         const project = await ProjectService.findOverview(id);
         if (project) {
             return response.status(200).json(project);

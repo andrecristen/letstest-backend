@@ -4,6 +4,7 @@ import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
+import { ensureProjectAccess, requireOrgRole } from "../utils/permissions";
 
 import * as TagService from "./tag.service";
 import * as TagValueService from "./tagValue.service";
@@ -11,15 +12,21 @@ import { Tag, TagValue } from "@prisma/client";
 
 export const tagRouter = express.Router();
 
-tagRouter.get("/project/:projectId", token.authMiddleware, async (request: Request, response: Response) => {
+tagRouter.get("/project/:projectId", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Tags']
     // #swagger.description = 'Lista tags de um projeto (inclui tags publicas da org).'
     const projectId: number = parseInt(request.params.projectId);
     try {
-        //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
+        const access = await ensureProjectAccess(request, response, projectId, {
+            allowRoles: ["owner", "manager", "tester"],
+        });
+        if (!access) return;
         const pagination = getPaginationParams(request.query);
         const result = await TagService.findByPaged({
-            OR: [{ projectId }, { projectId: null }],
+            OR: [
+                { projectId },
+                { projectId: null, organizationId: request.organizationId },
+            ],
         }, pagination);
         return response.status(200).json(
             buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
@@ -29,14 +36,21 @@ tagRouter.get("/project/:projectId", token.authMiddleware, async (request: Reque
     }
 });
 
-tagRouter.get("/:id", token.authMiddleware, async (request: Request, response: Response) => {
+tagRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Tags']
     // #swagger.description = 'Busca uma tag por id.'
     const id: number = parseInt(request.params.id);
     try {
-        //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador) ou se o tags é pública
         const tag = await TagService.find(id);
         if (tag) {
+            if (tag.projectId) {
+                const access = await ensureProjectAccess(request, response, tag.projectId, {
+                    allowRoles: ["owner", "manager", "tester"],
+                });
+                if (!access) return;
+            } else if (tag.organizationId && tag.organizationId !== request.organizationId) {
+                return response.status(404).json("Tag não encontrada");
+            }
             return response.status(200).json(tag);
         }
         return response.status(404).json("Tag não encontrada");
@@ -57,7 +71,10 @@ tagRouter.post("/:projectId", token.authMiddleware, tenantMiddleware, body("name
         if (!projectId) {
             return response.status(404).json({ error: "Projeto não definido" });
         }
-        //@todo adiconar validações para ver se usuário está no projeto (gerente apenas)
+        const access = await ensureProjectAccess(request, response, projectId, {
+            allowRoles: ["owner", "manager"],
+        });
+        if (!access) return;
         const body = request.body
         const tagValues = request.body.tagValues || [];
         delete body.tagValues;
@@ -79,7 +96,7 @@ async function processAddTagValues(tagValues: TagValue[], newTagId: number) {
     }
 }
 
-tagRouter.put("/:id", token.authMiddleware, body("name").isString(), body("situation").isNumeric(), async (request: Request, response: Response) => {
+tagRouter.put("/:id", token.authMiddleware, tenantMiddleware, body("name").isString(), body("situation").isNumeric(), async (request: Request, response: Response) => {
     // #swagger.tags = ['Tags']
     // #swagger.description = 'Atualiza dados de uma tag.'
     const id: number = parseInt(request.params.id);
@@ -92,7 +109,17 @@ tagRouter.put("/:id", token.authMiddleware, body("name").isString(), body("situa
         if (!tag) {
             return response.status(404).json("Tag não encontrada");
         }
-        //@todo adiconar validações para ver se usuário está no projeto (gerente apenas)
+        if (tag.projectId) {
+            const access = await ensureProjectAccess(request, response, tag.projectId, {
+                allowRoles: ["owner", "manager"],
+            });
+            if (!access) return;
+        } else {
+            if (tag.organizationId && tag.organizationId !== request.organizationId) {
+                return response.status(404).json("Tag não encontrada");
+            }
+            if (!requireOrgRole(request, response, ["owner", "admin"])) return;
+        }
         const body = request.body
         const tagValues = request.body.tagValues || [];
         delete body.tagValues;
@@ -115,7 +142,7 @@ async function processEditTagValues(tagValues: TagValue[],updatedTagId: number) 
     }
 }
 
-tagRouter.post("/value/:tagId", token.authMiddleware, body("name").isString(), async (request: Request, response: Response) => {
+tagRouter.post("/value/:tagId", token.authMiddleware, tenantMiddleware, body("name").isString(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TagValues']
     // #swagger.description = 'Cria um valor para uma tag.'
     const errors = validationResult(request);
@@ -127,7 +154,21 @@ tagRouter.post("/value/:tagId", token.authMiddleware, body("name").isString(), a
         if (!tagId) {
             return response.status(404).json({ error: "Tag não definida" });
         }
-        //@todo adiconar validações para ver se usuário está no projeto (gerente apenas)
+        const tag = await TagService.find(tagId);
+        if (!tag) {
+            return response.status(404).json("Tag não encontrada");
+        }
+        if (tag.projectId) {
+            const access = await ensureProjectAccess(request, response, tag.projectId, {
+                allowRoles: ["owner", "manager"],
+            });
+            if (!access) return;
+        } else {
+            if (tag.organizationId && tag.organizationId !== request.organizationId) {
+                return response.status(404).json("Tag não encontrada");
+            }
+            if (!requireOrgRole(request, response, ["owner", "admin"])) return;
+        }
         const tagValueData = { ...request.body, situation: TagService.TagSituationEnum.use, tagId: tagId };
         const newTagValue = await TagValueService.create(tagValueData);
         return response.status(201).json(newTagValue);
@@ -136,7 +177,7 @@ tagRouter.post("/value/:tagId", token.authMiddleware, body("name").isString(), a
     }
 });
 
-tagRouter.put("/value/:tagValueid", token.authMiddleware, body("name").isString(), body("situation").isNumeric(), async (request: Request, response: Response) => {
+tagRouter.put("/value/:tagValueid", token.authMiddleware, tenantMiddleware, body("name").isString(), body("situation").isNumeric(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TagValues']
     // #swagger.description = 'Atualiza um valor de tag.'
     const id: number = parseInt(request.params.tagValueid);
@@ -149,7 +190,21 @@ tagRouter.put("/value/:tagValueid", token.authMiddleware, body("name").isString(
         if (!tagValue) {
             return response.status(404).json("Tag Valor não encontrado");
         }
-        //@todo adiconar validações para ver se usuário está no projeto (gerente apenas)
+        const tag = await TagService.find(tagValue.tagId);
+        if (!tag) {
+            return response.status(404).json("Tag não encontrada");
+        }
+        if (tag.projectId) {
+            const access = await ensureProjectAccess(request, response, tag.projectId, {
+                allowRoles: ["owner", "manager"],
+            });
+            if (!access) return;
+        } else {
+            if (tag.organizationId && tag.organizationId !== request.organizationId) {
+                return response.status(404).json("Tag não encontrada");
+            }
+            if (!requireOrgRole(request, response, ["owner", "admin"])) return;
+        }
         const updatedTagValue = await TagValueService.update(id, request.body);
         return response.status(200).json(updatedTagValue);
     } catch (error: any) {

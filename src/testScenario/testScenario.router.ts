@@ -4,6 +4,8 @@ import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 import { db } from "../utils/db.server";
+import { tenantMiddleware } from "../utils/tenant.middleware";
+import { ensureProjectAccess } from "../utils/permissions";
 
 import * as TestScenarioService from "./testScenario.service";
 import * as ProjectService from "../project/project.service";
@@ -11,15 +13,18 @@ import { dispatchEvent } from "../webhook/webhook.service";
 
 export const testScenarioRouter = express.Router();
 
-testScenarioRouter.get("/project/:projectId", token.authMiddleware, async (request: Request, response: Response) => {
+testScenarioRouter.get("/project/:projectId", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestScenarios']
     // #swagger.description = 'Lista cenarios de teste de um projeto (paginado).'
     try {
-        //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
         const projectId: number = parseInt(request.params.projectId);
         if (!projectId) {
             return response.status(401).json({ error: "Projeto não identificado" });
         }
+        const access = await ensureProjectAccess(request, response, projectId, {
+            allowRoles: ["owner", "manager", "tester"],
+        });
+        if (!access) return;
         const pagination = getPaginationParams(request.query);
         const result = await TestScenarioService.findByPaged({ projectId: projectId }, pagination);
         return response.status(200).json(
@@ -30,15 +35,17 @@ testScenarioRouter.get("/project/:projectId", token.authMiddleware, async (reque
     }
 });
 
-testScenarioRouter.get("/:id", token.authMiddleware, async (request: Request, response: Response) => {
+testScenarioRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestScenarios']
     // #swagger.description = 'Busca um cenario de teste por id.'
     const id: number = parseInt(request.params.id);
     try {
-        //@todo adiconar validações para ver se usuário está no projeto (gerente ou testador)
-        //se for testador deve validar se está atribuido a ele esse teste
         const testScenario = await TestScenarioService.find(id);
         if (testScenario) {
+            const access = await ensureProjectAccess(request, response, testScenario.projectId, {
+                allowRoles: ["owner", "manager", "tester"],
+            });
+            if (!access) return;
             const executionCount = await db.testExecution.count({
                 where: {
                     testCase: {
@@ -57,7 +64,7 @@ testScenarioRouter.get("/:id", token.authMiddleware, async (request: Request, re
     }
 });
 
-testScenarioRouter.post("/:projectId", token.authMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
+testScenarioRouter.post("/:projectId", token.authMiddleware, tenantMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TestScenarios']
     // #swagger.description = 'Cria um cenario de teste no projeto.'
     const errors = validationResult(request);
@@ -67,6 +74,10 @@ testScenarioRouter.post("/:projectId", token.authMiddleware, body("name").isStri
     try {
         const projectId: number = parseInt(request.params.projectId);
         const userId = request.user?.id;
+        const access = await ensureProjectAccess(request, response, projectId, {
+            allowRoles: ["owner", "manager"],
+        });
+        if (!access) return;
         const project = await ProjectService.find(projectId);
         if (!project) {
             return response.status(404).json("Projeto não encontrado");
@@ -107,7 +118,7 @@ testScenarioRouter.post("/:projectId", token.authMiddleware, body("name").isStri
     }
 });
 
-testScenarioRouter.put("/:id/status", token.authMiddleware, body("status").isNumeric(), async (request: Request, response: Response) => {
+testScenarioRouter.put("/:id/status", token.authMiddleware, tenantMiddleware, body("status").isNumeric(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TestScenarios']
     // #swagger.description = 'Atualiza o status de aprovacao do cenario de teste.'
     const id: number = parseInt(request.params.id);
@@ -124,6 +135,10 @@ testScenarioRouter.put("/:id/status", token.authMiddleware, body("status").isNum
         if (!testScenario) {
             return response.status(404).json("Caso de Teste não encontrado");
         }
+        const access = await ensureProjectAccess(request, response, testScenario.projectId, {
+            allowRoles: ["owner", "manager"],
+        });
+        if (!access) return;
         const project = await ProjectService.find(testScenario.projectId);
         if (!project?.approvalEnabled || !project.approvalScenarioEnabled) {
             return response.status(400).json("Workflow de aprovação não habilitado");
@@ -157,7 +172,7 @@ testScenarioRouter.put("/:id/status", token.authMiddleware, body("status").isNum
     }
 });
 
-testScenarioRouter.put("/:id", token.authMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
+testScenarioRouter.put("/:id", token.authMiddleware, tenantMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TestScenarios']
     // #swagger.description = 'Atualiza um cenario de teste (sem execucoes).'
     const id: number = parseInt(request.params.id);
@@ -170,6 +185,10 @@ testScenarioRouter.put("/:id", token.authMiddleware, body("name").isString(), bo
         if (!testScenario) {
             return response.status(404).json("Caso de Teste não encontrado");
         }
+        const access = await ensureProjectAccess(request, response, testScenario.projectId, {
+            allowRoles: ["owner", "manager"],
+        });
+        if (!access) return;
         const userId = request.user?.id;
         const project = await ProjectService.find(testScenario.projectId);
         if (!project) {

@@ -102,21 +102,46 @@ export const getDeliveries = async (webhookId: number, limit = 50) => {
 
 export const validateWebhookAccess = async (
   organizationId: number
-): Promise<{ allowed: boolean; limit: number | null }> => {
-  if (!features.billingEnabled) {
-    return { allowed: true, limit: null };
-  }
-  const subscription = await db.subscription.findUnique({
-    where: { organizationId },
+): Promise<{
+  allowed: boolean;
+  limit: number | null;
+  planKey: string;
+  organization: { id: number; name: string; slug: string } | null;
+}> => {
+  const organization = await db.organization.findUnique({
+    where: { id: organizationId },
+    select: { id: true, name: true, slug: true, plan: true },
   });
-  const plan = getPlan(subscription?.plan);
+
+  if (!features.billingEnabled) {
+    return {
+      allowed: true,
+      limit: null,
+      planKey: organization?.plan ?? "free",
+      organization: organization ? { id: organization.id, name: organization.name, slug: organization.slug } : null,
+    };
+  }
+
+  // Keep consistent with billing.service: Organization.plan is the source of truth.
+  const planKey = organization?.plan ?? "free";
+  const plan = getPlan(planKey);
   const webhookLimit = plan.features.webhooks;
 
   if (webhookLimit === 0) {
-    return { allowed: false, limit: 0 };
+    return {
+      allowed: false,
+      limit: 0,
+      planKey,
+      organization: organization ? { id: organization.id, name: organization.name, slug: organization.slug } : null,
+    };
   }
 
-  return { allowed: true, limit: webhookLimit };
+  return {
+    allowed: true,
+    limit: webhookLimit,
+    planKey,
+    organization: organization ? { id: organization.id, name: organization.name, slug: organization.slug } : null,
+  };
 };
 
 export const countByOrganization = async (organizationId: number): Promise<number> => {

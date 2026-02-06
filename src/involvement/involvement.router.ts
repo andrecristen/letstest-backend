@@ -4,6 +4,8 @@ import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 import { db } from "../utils/db.server";
+import { tenantMiddleware } from "../utils/tenant.middleware";
+import { ensureProjectAccess } from "../utils/permissions";
 
 import * as InvolvementService from "./involvement.service";
 import * as ProjectService from "../project/project.service";
@@ -11,11 +13,15 @@ import { assertWithinLimit, LimitExceededError } from "../billing/billing.servic
 
 export const involvementRouter = express.Router();
 
-involvementRouter.get("/project/:projectId", token.authMiddleware, async (request: Request, response: Response) => {
+involvementRouter.get("/project/:projectId", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Involvements']
     // #swagger.description = 'Lista envolvimentos por projeto (paginado).'
     const projectId: number = parseInt(request.params.projectId);
     try {
+        const access = await ensureProjectAccess(request, response, projectId, {
+            allowRoles: ["owner", "manager"],
+        });
+        if (!access) return;
         const pagination = getPaginationParams(request.query);
         const search = typeof request.query.search === "string" ? request.query.search.trim() : "";
         const type = request.query.type ? parseInt(String(request.query.type), 10) : null;
@@ -40,7 +46,7 @@ involvementRouter.get("/project/:projectId", token.authMiddleware, async (reques
     }
 });
 
-involvementRouter.get("/project/:projectId/testers", token.authMiddleware, async (request: Request, response: Response) => {
+involvementRouter.get("/project/:projectId/testers", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Involvements']
     // #swagger.description = 'Lista testadores de um projeto.'
     try {
@@ -48,6 +54,10 @@ involvementRouter.get("/project/:projectId/testers", token.authMiddleware, async
         if (!projectId) {
             return response.status(400).json("Projeto não identificado");
         }
+        const access = await ensureProjectAccess(request, response, projectId, {
+            allowRoles: ["owner", "manager", "tester"],
+        });
+        if (!access) return;
         const testers = await InvolvementService.findBy({
             projectId,
             type: InvolvementService.InvolvementType.tester,
@@ -58,7 +68,7 @@ involvementRouter.get("/project/:projectId/testers", token.authMiddleware, async
     }
 });
 
-involvementRouter.get("/project/:projectId/my-role", token.authMiddleware, async (request: Request, response: Response) => {
+involvementRouter.get("/project/:projectId/my-role", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Involvements']
     // #swagger.description = 'Retorna o papel do usuario autenticado no projeto.'
     try {
@@ -67,6 +77,10 @@ involvementRouter.get("/project/:projectId/my-role", token.authMiddleware, async
         if (!projectId) {
             return response.status(400).json("Projeto não identificado");
         }
+        const access = await ensureProjectAccess(request, response, projectId, {
+            allowRoles: ["owner", "manager", "tester"],
+        });
+        if (!access) return;
         const project = await ProjectService.find(projectId);
         if (!project) {
             return response.status(404).json("Projeto não encontrado");
@@ -91,6 +105,7 @@ involvementRouter.get("/project/:projectId/my-role", token.authMiddleware, async
 involvementRouter.post(
     "/project/:projectId",
     token.authMiddleware,
+    tenantMiddleware,
     body("userId").isNumeric(),
     body("type").isNumeric(),
     async (request: Request, response: Response) => {
@@ -106,6 +121,10 @@ involvementRouter.post(
             if (!project) {
                 return response.status(404).json("Projeto não encontrado");
             }
+            const access = await ensureProjectAccess(request, response, projectId, {
+                allowRoles: ["owner", "manager"],
+            });
+            if (!access) return;
             await assertWithinLimit("seats", { organizationId: project.organizationId, increment: 1 });
             const userId = parseInt(request.body.userId);
             const type = parseInt(request.body.type);
@@ -144,7 +163,7 @@ involvementRouter.post(
     }
 );
 
-involvementRouter.delete("/:id", token.authMiddleware, async (request: Request, response: Response) => {
+involvementRouter.delete("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Involvements']
     // #swagger.description = 'Remove um envolvimento.'
     const id: number = parseInt(request.params.id);
@@ -153,6 +172,10 @@ involvementRouter.delete("/:id", token.authMiddleware, async (request: Request, 
         if (!involvement) {
             return response.status(404).json("Vínculo não encontrado");
         }
+        const access = await ensureProjectAccess(request, response, involvement.projectId, {
+            allowRoles: ["owner", "manager"],
+        });
+        if (!access) return;
         const updatedInvolvement = await InvolvementService.remove(id);
         return response.status(200).json(updatedInvolvement);
     } catch (error: any) {

@@ -7,6 +7,7 @@ export type Tag = {
     situation: number;
     commentary?: string | null;
     projectId?: number | null;
+    organizationId?: number | null;
 };
 
 export enum TagSituationEnum {

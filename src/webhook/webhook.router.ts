@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
+import { requireOrgRole } from "../utils/permissions";
 
 import * as WebhookService from "./webhook.service";
 
@@ -29,9 +30,13 @@ webhookRouter.get("/", token.authMiddleware, tenantMiddleware, async (request: R
   // #swagger.description = 'Lista webhooks da organizacao.'
   try {
     const organizationId = request.organizationId!;
-    const { allowed, limit } = await WebhookService.validateWebhookAccess(organizationId);
+    if (!requireOrgRole(request, response, ["owner", "admin"])) return;
+    const { allowed, limit, planKey, organization } = await WebhookService.validateWebhookAccess(organizationId);
     if (!allowed) {
-      return response.status(403).json({ error: "Webhooks not available on your plan" });
+      const orgLabel = organization?.name ?? `org ${organizationId}`;
+      return response.status(403).json({
+        error: `Webhooks not available on your plan (plan: ${planKey}, organization: ${orgLabel})`,
+      });
     }
     const webhooks = await WebhookService.findByOrganization(organizationId);
     return response.status(200).json({ webhooks, limit });
@@ -55,10 +60,14 @@ webhookRouter.post(
     }
     try {
       const organizationId = request.organizationId!;
-      const { allowed, limit } = await WebhookService.validateWebhookAccess(organizationId);
+      if (!requireOrgRole(request, response, ["owner", "admin"])) return;
+      const { allowed, limit, planKey, organization } = await WebhookService.validateWebhookAccess(organizationId);
 
       if (!allowed) {
-        return response.status(403).json({ error: "Webhooks not available on your plan" });
+        const orgLabel = organization?.name ?? `org ${organizationId}`;
+        return response.status(403).json({
+          error: `Webhooks not available on your plan (plan: ${planKey}, organization: ${orgLabel})`,
+        });
       }
 
       if (limit !== null) {
@@ -102,6 +111,7 @@ webhookRouter.put(
     // #swagger.description = 'Atualiza um webhook.'
     try {
       const organizationId = request.organizationId!;
+      if (!requireOrgRole(request, response, ["owner", "admin"])) return;
       const id = parseInt(request.params.id);
 
       const existing = await WebhookService.findById(id);
@@ -135,6 +145,7 @@ webhookRouter.post(
     // #swagger.description = 'Regenera o secret de um webhook.'
     try {
       const organizationId = request.organizationId!;
+      if (!requireOrgRole(request, response, ["owner", "admin"])) return;
       const id = parseInt(request.params.id);
 
       const existing = await WebhookService.findById(id);
@@ -159,6 +170,7 @@ webhookRouter.get(
     // #swagger.description = 'Lista entregas de um webhook.'
     try {
       const organizationId = request.organizationId!;
+      if (!requireOrgRole(request, response, ["owner", "admin"])) return;
       const id = parseInt(request.params.id);
 
       const existing = await WebhookService.findById(id);
@@ -179,6 +191,7 @@ webhookRouter.delete("/:id", token.authMiddleware, tenantMiddleware, async (requ
   // #swagger.description = 'Remove um webhook.'
   try {
     const organizationId = request.organizationId!;
+    if (!requireOrgRole(request, response, ["owner", "admin"])) return;
     const id = parseInt(request.params.id);
 
     const existing = await WebhookService.findById(id);

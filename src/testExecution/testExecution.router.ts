@@ -4,6 +4,8 @@ import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 import { db } from "../utils/db.server";
+import { tenantMiddleware } from "../utils/tenant.middleware";
+import { ensureProjectAccess, getProjectIdByTestCase, getProjectIdByTestExecution } from "../utils/permissions";
 
 import * as TestExecutionService from "./testExecution.service";
 import * as ProjectService from "../project/project.service";
@@ -12,14 +14,25 @@ import { dispatchEvent } from "../webhook/webhook.service";
 
 export const testExecutionRouter = express.Router();
 
-testExecutionRouter.get("/test-case/:testCaseId", token.authMiddleware, async (request: Request, response: Response) => {
+testExecutionRouter.get("/test-case/:testCaseId", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestExecutions']
     // #swagger.description = 'Lista execucoes de um caso de teste (paginado).'
-    //@todo adiconar validações para ver se usuário está no projeto
     const testCaseId: number = parseInt(request.params.testCaseId);
     try {
+        const projectId = await getProjectIdByTestCase(testCaseId);
+        if (!projectId) {
+            return response.status(404).json({ error: "Caso de Teste não encontrado" });
+        }
+        const access = await ensureProjectAccess(request, response, projectId, {
+            allowRoles: ["owner", "manager", "tester"],
+        });
+        if (!access) return;
         const pagination = getPaginationParams(request.query);
-        const result = await TestExecutionService.findByPaged({ testCaseId }, pagination);
+        const where: any = { testCaseId };
+        if (access.role === "tester") {
+            where.userId = request.user?.id;
+        }
+        const result = await TestExecutionService.findByPaged(where, pagination);
         return response.status(200).json(
             buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
         );
@@ -28,13 +41,20 @@ testExecutionRouter.get("/test-case/:testCaseId", token.authMiddleware, async (r
     }
 });
 
-testExecutionRouter.get("/test-case/:testCaseId/my", token.authMiddleware, async (request: Request, response: Response) => {
+testExecutionRouter.get("/test-case/:testCaseId/my", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestExecutions']
     // #swagger.description = 'Lista minhas execucoes de um caso de teste (paginado).'
-    //@todo adiconar validações para ver se usuário está no projeto
     const testCaseId: number = parseInt(request.params.testCaseId);
     const userId = request.user?.id;
     try {
+        const projectId = await getProjectIdByTestCase(testCaseId);
+        if (!projectId) {
+            return response.status(404).json({ error: "Caso de Teste não encontrado" });
+        }
+        const access = await ensureProjectAccess(request, response, projectId, {
+            allowRoles: ["owner", "manager", "tester"],
+        });
+        if (!access) return;
         const pagination = getPaginationParams(request.query);
         const result = await TestExecutionService.findByPaged({ testCaseId, userId }, pagination);
         return response.status(200).json(
@@ -45,14 +65,24 @@ testExecutionRouter.get("/test-case/:testCaseId/my", token.authMiddleware, async
     }
 });
 
-testExecutionRouter.get("/:id", token.authMiddleware, async (request: Request, response: Response) => {
+testExecutionRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestExecutions']
     // #swagger.description = 'Busca uma execucao de teste por id.'
-    //@todo adiconar validações para ver se usuário está no projeto
     const id: number = parseInt(request.params.id);
     try {
+        const projectId = await getProjectIdByTestExecution(id);
+        if (!projectId) {
+            return response.status(404).json({ error: "Execução de testes não encontrada" });
+        }
+        const access = await ensureProjectAccess(request, response, projectId, {
+            allowRoles: ["owner", "manager", "tester"],
+        });
+        if (!access) return;
         const testExecution = await TestExecutionService.find(id);
         if (testExecution) {
+            if (access.role === "tester" && testExecution.userId !== request.user?.id) {
+                return response.status(403).json({ error: "Permissão insuficiente" });
+            }
             return response.status(200).json(testExecution);
         }
         return response.status(404).json("Execução de testes não encontrada");
@@ -61,7 +91,7 @@ testExecutionRouter.get("/:id", token.authMiddleware, async (request: Request, r
     }
 });
 
-testExecutionRouter.post("/:testCaseId", token.authMiddleware, body("testTime").isNumeric(), body("data").isObject(), async (request: Request, response: Response) => {
+testExecutionRouter.post("/:testCaseId", token.authMiddleware, tenantMiddleware, body("testTime").isNumeric(), body("data").isObject(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TestExecutions']
     // #swagger.description = 'Cria uma execucao para um caso de teste.'
     const errors = validationResult(request);
@@ -74,7 +104,6 @@ testExecutionRouter.post("/:testCaseId", token.authMiddleware, body("testTime").
         if (!testCaseId) {
             return response.status(404).json({ error: "Caso de Teste não definido" });
         }
-        //@todo adiconar validações para ver se usuário está no projeto
         const testCase = await db.testCase.findUnique({
             where: { id: testCaseId },
             select: { id: true, projectId: true, approvalStatus: true, testScenario: { select: { approvalStatus: true } } },
@@ -82,6 +111,10 @@ testExecutionRouter.post("/:testCaseId", token.authMiddleware, body("testTime").
         if (!testCase?.projectId) {
             return response.status(404).json({ error: "Caso de Teste não encontrado" });
         }
+        const access = await ensureProjectAccess(request, response, testCase.projectId, {
+            allowRoles: ["owner", "manager", "tester"],
+        });
+        if (!access) return;
         const project = await ProjectService.find(testCase.projectId);
         if (project?.organizationId) {
             await assertWithinLimit("test_executions", { organizationId: project.organizationId, increment: 1 });

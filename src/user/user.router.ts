@@ -48,6 +48,7 @@ userRouter.post("/register", body("email").isString(), body("name").isString(), 
 
         return response.status(200).json({
             userId: newUser.id,
+            userName: newUser.name,
             token: token.sign(payload),
             organizations: [{ ...org, role: "owner" }],
         });
@@ -164,6 +165,7 @@ userRouter.post('/auth', async (req: Request, res: Response) => {
 
         res.json({
             userId: user.id,
+            userName: user.name,
             token: token.sign(payload),
             organizations,
         });

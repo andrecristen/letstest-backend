@@ -9,6 +9,7 @@ export type Template = {
     data: JsonValue;
     type: number;
     projectId: number | null;
+    organizationId?: number | null;
 };
 
 export enum TemplateType {

@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
+import { requireOrgRole } from "../utils/permissions";
 
 import * as ApiKeyService from "./apiKey.service";
 
@@ -13,9 +14,13 @@ apiKeyRouter.get("/", token.authMiddleware, tenantMiddleware, async (request: Re
   // #swagger.description = 'Lista API keys da organizacao.'
   try {
     const organizationId = request.organizationId!;
-    const hasAccess = await ApiKeyService.validateApiAccess(organizationId);
-    if (!hasAccess) {
-      return response.status(403).json({ error: "API access not available on your plan" });
+    if (!requireOrgRole(request, response, ["owner", "admin"])) return;
+    const access = await ApiKeyService.validateApiAccess(organizationId);
+    if (!access.allowed) {
+      const orgLabel = access.organization?.name ?? `org ${organizationId}`;
+      return response.status(403).json({
+        error: `API access not available on your plan (plan: ${access.planKey}, organization: ${orgLabel})`,
+      });
     }
     const apiKeys = await ApiKeyService.findByOrganization(organizationId);
     return response.status(200).json(apiKeys);
@@ -39,11 +44,15 @@ apiKeyRouter.post(
     }
     try {
       const organizationId = request.organizationId!;
+      if (!requireOrgRole(request, response, ["owner", "admin"])) return;
       const userId = request.user?.id;
 
-      const hasAccess = await ApiKeyService.validateApiAccess(organizationId);
-      if (!hasAccess) {
-        return response.status(403).json({ error: "API access not available on your plan" });
+      const access = await ApiKeyService.validateApiAccess(organizationId);
+      if (!access.allowed) {
+        const orgLabel = access.organization?.name ?? `org ${organizationId}`;
+        return response.status(403).json({
+          error: `API access not available on your plan (plan: ${access.planKey}, organization: ${orgLabel})`,
+        });
       }
 
       const { name, scopes, expiresAt } = request.body;
@@ -71,19 +80,28 @@ apiKeyRouter.put(
   async (request: Request, response: Response) => {
     // #swagger.tags = ['ApiKeys']
     // #swagger.description = 'Atualiza uma API key.'
-    try {
-      const organizationId = request.organizationId!;
-      const id = parseInt(request.params.id);
+  try {
+    const organizationId = request.organizationId!;
+    if (!requireOrgRole(request, response, ["owner", "admin"])) return;
+    const id = parseInt(request.params.id);
 
-      const existing = await ApiKeyService.findById(id);
-      if (!existing || existing.organizationId !== organizationId) {
-        return response.status(404).json({ error: "API key not found" });
-      }
+    const existing = await ApiKeyService.findById(id);
+    if (!existing || existing.organizationId !== organizationId) {
+      return response.status(404).json({ error: "API key not found" });
+    }
 
-      const { name, scopes, expiresAt } = request.body;
-      const updated = await ApiKeyService.update(id, {
-        name,
-        scopes,
+    const access = await ApiKeyService.validateApiAccess(organizationId);
+    if (!access.allowed) {
+      const orgLabel = access.organization?.name ?? `org ${organizationId}`;
+      return response.status(403).json({
+        error: `API access not available on your plan (plan: ${access.planKey}, organization: ${orgLabel})`,
+      });
+    }
+
+    const { name, scopes, expiresAt } = request.body;
+    const updated = await ApiKeyService.update(id, {
+      name,
+      scopes,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
       });
 
@@ -99,11 +117,20 @@ apiKeyRouter.delete("/:id", token.authMiddleware, tenantMiddleware, async (reque
   // #swagger.description = 'Remove uma API key.'
   try {
     const organizationId = request.organizationId!;
+    if (!requireOrgRole(request, response, ["owner", "admin"])) return;
     const id = parseInt(request.params.id);
 
     const existing = await ApiKeyService.findById(id);
     if (!existing || existing.organizationId !== organizationId) {
       return response.status(404).json({ error: "API key not found" });
+    }
+
+    const access = await ApiKeyService.validateApiAccess(organizationId);
+    if (!access.allowed) {
+      const orgLabel = access.organization?.name ?? `org ${organizationId}`;
+      return response.status(403).json({
+        error: `API access not available on your plan (plan: ${access.planKey}, organization: ${orgLabel})`,
+      });
     }
 
     await ApiKeyService.remove(id);

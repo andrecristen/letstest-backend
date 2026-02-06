@@ -41,9 +41,12 @@ export const apiKeyMiddleware = async (
       return response.status(401).json({ error: "API key has expired" });
     }
 
-    const hasAccess = await ApiKeyService.validateApiAccess(apiKey.organizationId);
-    if (!hasAccess) {
-      return response.status(403).json({ error: "API access not available on your plan" });
+    const access = await ApiKeyService.validateApiAccess(apiKey.organizationId);
+    if (!access.allowed) {
+      const orgLabel = access.organization?.name ?? `org ${apiKey.organizationId}`;
+      return response.status(403).json({
+        error: `API access not available on your plan (plan: ${access.planKey}, organization: ${orgLabel})`,
+      });
     }
 
     ApiKeyService.updateLastUsed(apiKey.id).catch(() => {});

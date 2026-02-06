@@ -120,15 +120,30 @@ export const update = async (
   });
 };
 
-export const validateApiAccess = async (organizationId: number): Promise<boolean> => {
-  if (!features.billingEnabled) {
-    return true;
-  }
-  const subscription = await db.subscription.findUnique({
-    where: { organizationId },
+export const validateApiAccess = async (
+  organizationId: number
+): Promise<{ allowed: boolean; planKey: string; organization: { id: number; name: string; slug: string } | null }> => {
+  const organization = await db.organization.findUnique({
+    where: { id: organizationId },
+    select: { id: true, name: true, slug: true, plan: true },
   });
-  const plan = getPlan(subscription?.plan);
-  return plan.features.apiAccess;
+
+  if (!features.billingEnabled) {
+    return {
+      allowed: true,
+      planKey: organization?.plan ?? "free",
+      organization: organization ? { id: organization.id, name: organization.name, slug: organization.slug } : null,
+    };
+  }
+
+  // Keep consistent with billing.service: Organization.plan is the source of truth.
+  const planKey = organization?.plan ?? "free";
+  const plan = getPlan(planKey);
+  return {
+    allowed: plan.features.apiAccess,
+    planKey,
+    organization: organization ? { id: organization.id, name: organization.name, slug: organization.slug } : null,
+  };
 };
 
 export const countByOrganization = async (organizationId: number): Promise<number> => {

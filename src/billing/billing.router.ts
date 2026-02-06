@@ -2,6 +2,7 @@ import express from "express";
 import type { Request, Response } from "express";
 import { token } from "../utils/token.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
+import { requireOrgRole } from "../utils/permissions";
 import { features } from "../utils/features";
 import { PlanKey, plans } from "./plans.config";
 import { createCheckoutSession, createPortalSession, getSubscriptionSummary, getUsageSummary, handleStripeWebhook } from "./billing.service";
@@ -19,6 +20,7 @@ billingRouter.get("/plans", token.authMiddleware, tenantMiddleware, async (_requ
 
 billingRouter.get("/subscription", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
   try {
+    if (!requireOrgRole(request, response, ["owner", "admin"])) return;
     const organizationId = request.organizationId!;
     const summary = await getSubscriptionSummary(organizationId);
     return response.status(200).json(summary);
@@ -29,6 +31,7 @@ billingRouter.get("/subscription", token.authMiddleware, tenantMiddleware, async
 
 billingRouter.get("/usage", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
   try {
+    if (!requireOrgRole(request, response, ["owner", "admin"])) return;
     const organizationId = request.organizationId!;
     const summary = await getUsageSummary(organizationId);
     return response.status(200).json(summary);
@@ -39,6 +42,7 @@ billingRouter.get("/usage", token.authMiddleware, tenantMiddleware, async (reque
 
 billingRouter.post("/checkout", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
   try {
+    if (!requireOrgRole(request, response, ["owner", "admin"])) return;
     if (!features.billingEnabled) {
       return response.status(400).json({ error: "Billing disabled" });
     }
@@ -56,6 +60,7 @@ billingRouter.post("/checkout", token.authMiddleware, tenantMiddleware, async (r
 
 billingRouter.post("/portal", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
   try {
+    if (!requireOrgRole(request, response, ["owner", "admin"])) return;
     if (!features.billingEnabled) {
       return response.status(400).json({ error: "Billing disabled" });
     }
