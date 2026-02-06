@@ -29,23 +29,6 @@ export const update = async (id: number, report: Partial<Report>): Promise<Repor
     });
 };
 
-export const find = async (id: number): Promise<Report | null> => {
-    return db.report.findUnique({
-        where: {
-            id: id,
-        },
-        include: {
-            user: {
-                select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                },
-            }
-        }
-    });
-};
-
 export const findOneBy = async (params: any): Promise<Report | null> => {
     return db.report.findUnique({
         where: params,

@@ -146,10 +146,3 @@ export const getProjectIdByTestExecution = async (testExecutionId: number) => {
   return execution?.testCase?.projectId ?? null;
 };
 
-export const getProjectIdByReport = async (reportId: number) => {
-  const report = await db.report.findUnique({
-    where: { id: reportId },
-    select: { testExecution: { select: { testCase: { select: { projectId: true } } } } },
-  });
-  return report?.testExecution?.testCase?.projectId ?? null;
-};

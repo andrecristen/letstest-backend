@@ -97,6 +97,7 @@ model Project {
   visibility              Int
   situation               Int
   dueDate                 DateTime?
+  createdAt               DateTime       @default(now())
   approvalEnabled         Boolean        @default(false)
   approvalScenarioEnabled Boolean        @default(false)
   approvalTestCaseEnabled Boolean        @default(false)

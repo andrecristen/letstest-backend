@@ -97,18 +97,6 @@ userRouter.put("/:id", token.authMiddleware, body("email").isString(), body("nam
     }
 });
 
-userRouter.get("/", token.authMiddleware, async (request: Request, response: Response) => {
-    // #swagger.tags = ['Users']
-    // #swagger.description = 'Lista usuarios.'
-    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
-    try {
-        const users = await UserService.list();
-        return response.status(200).json(users);
-    } catch (error: any) {
-        return response.status(500).json(error.message);
-    }
-});
-
 userRouter.get("/search", token.authMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Users']
     // #swagger.description = 'Busca usuarios com filtros e paginacao.'

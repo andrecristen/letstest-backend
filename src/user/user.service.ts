@@ -39,18 +39,6 @@ export const update = async (id: number, data: Partial<User>): Promise<User> => 
 };
 
 
-export const list = async (): Promise<Omit<User, "password">[]> => {
-    return db.user.findMany({
-        select: {
-            id: true,
-            email: true,
-            name: true,
-            access: true,
-        },
-    });
-};
-
-
 export const find = async (id: number): Promise<Omit<User, "password"> | null> => {
     return db.user.findUnique({
         select: {

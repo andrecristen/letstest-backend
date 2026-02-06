@@ -61,7 +61,19 @@ export const findOverview = async (id: number): Promise<Project | null> => {
         where: {
             id: id,
         },
-        include: {
+        select: {
+            id: true,
+            name: true,
+            description: true,
+            visibility: true,
+            situation: true,
+            dueDate: true,
+            approvalEnabled: true,
+            approvalScenarioEnabled: true,
+            approvalTestCaseEnabled: true,
+            creatorId: true,
+            organizationId: true,
+            createdAt: true,
             creator: {
                 select: {
                     id: true,

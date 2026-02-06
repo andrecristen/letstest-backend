@@ -4,7 +4,7 @@ import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 import { tenantMiddleware } from "../utils/tenant.middleware";
-import { ensureProjectAccess, getProjectIdByReport, getProjectIdByTestExecution, requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
+import { ensureProjectAccess, getProjectIdByTestExecution, requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 
 import * as ReportService from "./report.service";
 import * as NotificationService from "../notification/notification.service";
@@ -36,33 +36,6 @@ reportRouter.get("/test-execution/:testExecutionId", token.authMiddleware, tenan
         return response.status(200).json(
             buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
         );
-    } catch (error: any) {
-        return response.status(500).json(error.message);
-    }
-});
-
-reportRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
-    // #swagger.tags = ['Reports']
-    // #swagger.description = 'Busca um relatorio por id.'
-    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
-    const id: number = parseInt(request.params.id);
-    try {
-        const projectId = await getProjectIdByReport(id);
-        if (!projectId) {
-            return response.status(404).json("Avaliação da Execução de testes não encontrada");
-        }
-        const access = await ensureProjectAccess(request, response, projectId, {
-            allowRoles: ["owner", "manager", "tester"],
-        });
-        if (!access) return;
-        const report = await ReportService.find(id);
-        if (report) {
-            if (access.role === "tester" && report.userId !== request.user?.id) {
-                return response.status(403).json({ error: "Permissão insuficiente" });
-            }
-            return response.status(200).json(report);
-        }
-        return response.status(404).json("Avaliação da Execução de testes não encontrada");
     } catch (error: any) {
         return response.status(500).json(error.message);
     }

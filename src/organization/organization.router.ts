@@ -205,22 +205,6 @@ organizationRouter.get("/:id/members", token.authMiddleware, tenantMiddleware, a
     }
 });
 
-// GET /:id/invites - List pending invites only
-organizationRouter.get("/:id/invites", token.authMiddleware, tenantMiddleware, async (req: Request, res: Response) => {
-    // #swagger.tags = ['Organizations']
-    // #swagger.description = 'Lista apenas convites pendentes da organizacao.'
-    if (!requireSystemAccess(req, res, USER_ACCESS_LEVEL)) return;
-    try {
-        if (req.organizationRole !== "owner" && req.organizationRole !== "admin") {
-            return res.status(403).json({ error: "Apenas owners e admins podem ver convites" });
-        }
-        const pendingInvites = await OrganizationService.getPendingInvites(req.organizationId!);
-        return res.status(200).json(pendingInvites);
-    } catch (error: any) {
-        return res.status(500).json(error.message);
-    }
-});
-
 // POST /:id/members/invite - Invite a member
 organizationRouter.post("/:id/members/invite", token.authMiddleware, tenantMiddleware, body("email").isEmail(), async (req: Request, res: Response) => {
     // #swagger.tags = ['Organizations']

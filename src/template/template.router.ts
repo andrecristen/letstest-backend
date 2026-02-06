@@ -10,22 +10,6 @@ import * as TemplateService from "./template.service";
 
 export const templateRouter = express.Router();
 
-templateRouter.get("/defaults/:type", token.authMiddleware, async (request: Request, response: Response) => {
-    // #swagger.tags = ['Templates']
-    // #swagger.description = 'Lista templates padrao por tipo (paginado).'
-    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
-    const type: number = parseInt(request.params.type);
-    try {
-        const pagination = getPaginationParams(request.query);
-        const result = await TemplateService.findByPaged({ projectId: null, type }, pagination);
-        return response.status(200).json(
-            buildPaginatedResponse(result.data, result.total, pagination.page, pagination.limit)
-        );
-    } catch (error: any) {
-        return response.status(500).json(error.message);
-    }
-});
-
 templateRouter.get("/:projectId/all", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Templates']
     // #swagger.description = 'Lista templates do projeto e templates padrao (paginado).'
