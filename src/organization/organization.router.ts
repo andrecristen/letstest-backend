@@ -4,9 +4,11 @@ import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
 import { sendInviteEmail } from "../utils/email.server";
+import { recordAuditLog } from "../utils/audit.middleware";
 
 import * as OrganizationService from "./organization.service";
 import { dispatchEvent } from "../webhook/webhook.service";
+import { assertSeatInviteWithinLimit, LimitExceededError } from "../billing/billing.service";
 
 export const organizationRouter = express.Router();
 
@@ -47,6 +49,14 @@ organizationRouter.post("/", token.authMiddleware, body("name").isString(), asyn
 
         const slug = OrganizationService.generateSlug(name);
         const org = await OrganizationService.create({ name, slug, creatorId: userId });
+
+        await recordAuditLog(req, {
+            organizationId: org.id,
+            userId,
+            action: "organization.create",
+            resourceType: "organization",
+            resourceId: org.id,
+        });
 
         return res.status(201).json(org);
     } catch (error: any) {
@@ -94,6 +104,14 @@ organizationRouter.post("/invite/accept", token.authMiddleware, body("token").is
 
         const org = await OrganizationService.acceptInvite(inviteToken, userId);
 
+        await recordAuditLog(req, {
+            organizationId: org.id,
+            userId,
+            action: "organization.invite_accept",
+            resourceType: "organization",
+            resourceId: org.id,
+        });
+
         dispatchEvent(org.id, "involvement.accepted", {
             organizationId: org.id,
             userId,
@@ -103,6 +121,14 @@ organizationRouter.post("/invite/accept", token.authMiddleware, body("token").is
 
         return res.status(200).json(org);
     } catch (error: any) {
+        if (error instanceof LimitExceededError) {
+            return res.status(402).json({
+                code: "LIMIT_EXCEEDED",
+                metric: error.metric,
+                current: error.current,
+                limit: error.limit,
+            });
+        }
         return res.status(400).json({ error: error.message });
     }
 });
@@ -140,6 +166,13 @@ organizationRouter.put("/:id", token.authMiddleware, tenantMiddleware, body("nam
         }
         const { name, slug, logo } = req.body;
         const updated = await OrganizationService.update(req.organizationId!, { name, slug, logo });
+        await recordAuditLog(req, {
+            organizationId: req.organizationId!,
+            userId: req.user?.id,
+            action: "organization.update",
+            resourceType: "organization",
+            resourceId: req.organizationId!,
+        });
         return res.status(200).json(updated);
     } catch (error: any) {
         return res.status(500).json(error.message);
@@ -191,6 +224,7 @@ organizationRouter.post("/:id/members/invite", token.authMiddleware, tenantMiddl
         if (req.organizationRole !== "owner" && req.organizationRole !== "admin") {
             return res.status(403).json({ error: "Apenas owners e admins podem convidar membros" });
         }
+        await assertSeatInviteWithinLimit(req.organizationId!, 1);
         const { email, role } = req.body;
         const result = await OrganizationService.createInvite(req.organizationId!, email, role || "member");
 
@@ -205,6 +239,15 @@ organizationRouter.post("/:id/members/invite", token.authMiddleware, tenantMiddl
             });
         }
 
+        await recordAuditLog(req, {
+            organizationId: req.organizationId!,
+            userId: req.user?.id,
+            action: "organization.invite_create",
+            resourceType: "organization_invite",
+            resourceId: result.invite.id,
+            metadata: { email, role: result.invite.role },
+        });
+
         return res.status(201).json({
             invite: result.invite,
             userExists: result.userExists,
@@ -213,6 +256,14 @@ organizationRouter.post("/:id/members/invite", token.authMiddleware, tenantMiddl
                 : "Convite criado e email enviado.",
         });
     } catch (error: any) {
+        if (error instanceof LimitExceededError) {
+            return res.status(402).json({
+                code: "LIMIT_EXCEEDED",
+                metric: error.metric,
+                current: error.current,
+                limit: error.limit,
+            });
+        }
         if (error.message.includes("já é membro") || error.message.includes("convite pendente")) {
             return res.status(409).json({ error: error.message });
         }

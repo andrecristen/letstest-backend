@@ -1,6 +1,5 @@
-import jwt, { Secret, JwtPayload } from 'jsonwebtoken';
+import jwt, { JwtPayload } from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
-import { User } from '../user/user.service';
 
 const SECRET = process.env.JWT_SECRET;
 if (!SECRET) {
@@ -27,11 +26,23 @@ export type TokenPayload = {
 let token: any = {};
 
 token.sign = (payload: TokenPayload) => {
-    return jwt.sign(payload, SECRET, { expiresIn: '8h' });
+    return jwt.sign(payload, SECRET, { expiresIn: '15m' });
 }
 
 token.verify = (rawToken: string) => {
     return jwt.verify(rawToken, SECRET);
+}
+
+token.signPasswordReset = (payload: { id: number; email: string }) => {
+    return jwt.sign({ ...payload, type: "password_reset" }, SECRET, { expiresIn: "1h" });
+}
+
+token.verifyPasswordReset = (rawToken: string) => {
+    const decoded = jwt.verify(rawToken, SECRET) as JwtPayload & { type?: string };
+    if (decoded.type !== "password_reset") {
+        throw new Error("Invalid reset token");
+    }
+    return decoded;
 }
 
 token.authMiddleware = (req: Request, res: Response, next: NextFunction) => {

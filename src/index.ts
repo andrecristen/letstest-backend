@@ -27,6 +27,7 @@ import { notificationSettingsRouter } from "./notification/notificationSettings.
 import { organizationRouter } from "./organization/organization.router";
 import { configRouter } from "./config/config.router";
 import { billingRouter } from "./billing/billing.router";
+import { billingAdminRouter } from "./billing/billing.admin.router";
 import { apiKeyRouter } from "./apiKey/apiKey.router";
 import { webhookRouter } from "./webhook/webhook.router";
 import { publicProjectRouter } from "./publicApi/v1/projects.router";
@@ -125,6 +126,7 @@ app.use("/api/tag", tagRouter);
 app.use("/api/notifications", notificationRouter);
 app.use("/api/notification-settings", notificationSettingsRouter);
 app.use("/api/billing", billingRouter);
+app.use("/api/admin", billingAdminRouter);
 app.use("/api/config", configRouter);
 app.use("/api/api-keys", apiKeyRouter);
 app.use("/api/webhooks", webhookRouter);

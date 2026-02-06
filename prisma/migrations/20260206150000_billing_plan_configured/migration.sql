@@ -1,0 +1,2 @@
+ALTER TABLE "BillingPlan"
+ADD COLUMN "configured" BOOLEAN NOT NULL DEFAULT false;

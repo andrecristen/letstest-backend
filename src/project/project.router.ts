@@ -5,6 +5,7 @@ import { token } from "../utils/token.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 import { ensureProjectAccess } from "../utils/permissions";
+import { recordAuditLog } from "../utils/audit.middleware";
 
 import * as ProjectService from "./project.service";
 import * as InvolvementService from "../involvement/involvement.service";
@@ -138,6 +139,13 @@ projectRouter.post("/", token.authMiddleware, tenantMiddleware, body("name").isS
             projectData.dueDate = new Date(projectData.dueDate);
         }
         const newProject = await ProjectService.create(projectData);
+        await recordAuditLog(request, {
+            organizationId,
+            userId,
+            action: "project.create",
+            resourceType: "project",
+            resourceId: newProject.id,
+        });
         return response.status(201).json(newProject);
     } catch (error: any) {
         if (error instanceof LimitExceededError) {
@@ -174,6 +182,13 @@ projectRouter.put("/:id", token.authMiddleware, tenantMiddleware, async (request
             updatePayload.dueDate = new Date(updatePayload.dueDate);
         }
         const updatedProject = await ProjectService.update(id, updatePayload);
+        await recordAuditLog(request, {
+            organizationId: project.organizationId,
+            userId,
+            action: "project.update",
+            resourceType: "project",
+            resourceId: id,
+        });
         return response.status(200).json(updatedProject);
     } catch (error: any) {
         return response.status(500).json(error.message);

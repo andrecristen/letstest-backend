@@ -170,3 +170,84 @@ export const sendInviteEmail = async (data: InviteEmailData) => {
 
     return sendEmail(data.to, subject, text, html);
 };
+
+// =============================================================================
+// Password reset email
+// =============================================================================
+
+const DEFAULT_RESET_TEMPLATE = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redefinir senha</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .card { background: #fff; border-radius: 12px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #1a1a1a; font-size: 24px; margin-bottom: 20px; }
+        p { color: #666; margin-bottom: 15px; }
+        .button { display: inline-block; background: #1a1a1a; color: #fff !important; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600; margin: 20px 0; }
+        .button:hover { background: #333; }
+        .footer { text-align: center; margin-top: 30px; color: #999; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Redefinição de senha</h1>
+            <p>Recebemos uma solicitação para redefinir sua senha no Letstest.</p>
+            <p>Para continuar, clique no botão abaixo:</p>
+            <div style="text-align: center;">
+                <a href="{{resetUrl}}" class="button">Redefinir senha</a>
+            </div>
+            <p style="font-size: 14px; color: #999;">Se você não solicitou esta mudança, pode ignorar este email.</p>
+        </div>
+        <div class="footer">
+            <p>© {{year}} Letstest. Todos os direitos reservados.</p>
+            <p>Este é um email automático, não responda.</p>
+        </div>
+    </div>
+</body>
+</html>
+`;
+
+const DEFAULT_RESET_TEXT = `
+Redefinição de senha - Letstest
+
+Recebemos uma solicitação para redefinir sua senha no Letstest.
+
+Para continuar, acesse o link abaixo:
+{{resetUrl}}
+
+Se você não solicitou esta mudança, pode ignorar este email.
+
+---
+© {{year}} Letstest
+`;
+
+export type PasswordResetEmailData = {
+    to: string;
+    token: string;
+};
+
+export const sendPasswordResetEmail = async (data: PasswordResetEmailData) => {
+    const appUrl = APP_URL || "http://localhost:3000";
+    const resetUrl = `${appUrl}/reset-password?token=${data.token}`;
+
+    const variables = {
+        resetUrl,
+        year: new Date().getFullYear().toString(),
+    };
+
+    const htmlTemplate = loadTemplate("reset-password", DEFAULT_RESET_TEMPLATE);
+    const textTemplate = loadTemplate("reset-password-text", DEFAULT_RESET_TEXT);
+
+    const html = renderTemplate(htmlTemplate, variables);
+    const text = renderTemplate(textTemplate, variables);
+
+    const subject = "Redefinição de senha - Letstest";
+
+    return sendEmail(data.to, subject, text, html);
+};

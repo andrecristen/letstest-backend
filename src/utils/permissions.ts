@@ -5,6 +5,7 @@ import { InvolvementType } from "../involvement/involvement.service";
 
 export type OrganizationRole = "owner" | "admin" | "member";
 export type ProjectRole = "owner" | "manager" | "tester" | "none";
+export const SYSTEM_ACCESS_LEVEL = 99;
 
 const resolveProjectRole = (
   creatorId: number,
@@ -24,6 +25,19 @@ export const requireOrgRole = (
 ): boolean => {
   const role = req.organizationRole as OrganizationRole | undefined;
   if (!role || !allowed.includes(role)) {
+    res.status(403).json({ error: "Permissão insuficiente" });
+    return false;
+  }
+  return true;
+};
+
+export const requireSystemAccess = (
+  req: Request,
+  res: Response,
+  minAccess: number = SYSTEM_ACCESS_LEVEL
+): boolean => {
+  const access = req.user?.access;
+  if (typeof access !== "number" || access < minAccess) {
     res.status(403).json({ error: "Permissão insuficiente" });
     return false;
   }

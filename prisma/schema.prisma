@@ -31,6 +31,7 @@ model Organization {
   subscription Subscription?
   apiKeys     ApiKey[]
   webhooks    Webhook[]
+  auditLogs   AuditLog[]
 }
 
 model OrganizationMember {
@@ -79,6 +80,8 @@ model User {
   reports        Report[]
   notifications  NotificationRecipient[]
   memberships    OrganizationMember[]
+  refreshTokens  RefreshToken[]
+  auditLogs      AuditLog[]
   testCaseAssignments     TestCaseAssignment[] @relation("TestCaseAssignee")
   testCaseAssignmentsMade TestCaseAssignment[] @relation("TestCaseAssigner")
 }
@@ -350,6 +353,21 @@ model TagValue {
 // Billing
 // =============================================================================
 
+model BillingPlan {
+  id                Int      @id @default(autoincrement())
+  key               String   @unique
+  name              String
+  stripeProductId   String?  @unique
+  stripePriceId     String?  @unique
+  priceMonthlyCents Int?
+  limits            Json
+  features          Json
+  configured        Boolean  @default(false)
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
 model Subscription {
   id                   Int      @id @default(autoincrement())
   organizationId       Int      @unique
@@ -431,4 +449,41 @@ model WebhookDelivery {
   webhook        Webhook   @relation(fields: [webhookId], references: [id])
 
   @@index([webhookId, createdAt])
+}
+
+// =============================================================================
+// Security & UX (Refresh Tokens, Audit Logs)
+// =============================================================================
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  token     String    @unique
+  family    String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([token])
+  @@index([userId, family])
+}
+
+model AuditLog {
+  id             Int       @id @default(autoincrement())
+  organizationId Int
+  userId         Int?
+  action         String
+  resourceType   String
+  resourceId     Int?
+  metadata       Json?
+  ipAddress      String?
+  createdAt      DateTime  @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User?        @relation(fields: [userId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([userId, createdAt])
 }

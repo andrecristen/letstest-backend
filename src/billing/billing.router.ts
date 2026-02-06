@@ -4,8 +4,8 @@ import { token } from "../utils/token.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
 import { requireOrgRole } from "../utils/permissions";
 import { features } from "../utils/features";
-import { PlanKey, plans } from "./plans.config";
-import { createCheckoutSession, createPortalSession, getSubscriptionSummary, getUsageSummary, handleStripeWebhook } from "./billing.service";
+import { PlanKey } from "./plans.config";
+import { createCheckoutSession, createPortalSession, getBillingPlans, getSubscriptionSummary, getUsageSummary, handleStripeWebhook, syncPlansFromStripe } from "./billing.service";
 import { stripe, stripeConfig } from "./stripe.server";
 
 interface RequestWithRawBody extends Request {
@@ -15,7 +15,12 @@ interface RequestWithRawBody extends Request {
 export const billingRouter = express.Router();
 
 billingRouter.get("/plans", token.authMiddleware, tenantMiddleware, async (_request: Request, response: Response) => {
-  return response.status(200).json(Object.values(plans));
+  try {
+    const plans = await getBillingPlans();
+    return response.status(200).json(plans);
+  } catch (error: any) {
+    return response.status(500).json({ error: error.message });
+  }
 });
 
 billingRouter.get("/subscription", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
@@ -67,6 +72,19 @@ billingRouter.post("/portal", token.authMiddleware, tenantMiddleware, async (req
     const organizationId = request.organizationId!;
     const session = await createPortalSession(organizationId);
     return response.status(200).json({ url: session.url });
+  } catch (error: any) {
+    return response.status(500).json({ error: error.message });
+  }
+});
+
+billingRouter.post("/plans/sync", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+  try {
+    if (!requireOrgRole(request, response, ["owner", "admin"])) return;
+    if (!features.billingEnabled) {
+      return response.status(400).json({ error: "Billing disabled" });
+    }
+    const plans = await syncPlansFromStripe();
+    return response.status(200).json({ synced: plans.length, plans });
   } catch (error: any) {
     return response.status(500).json({ error: error.message });
   }

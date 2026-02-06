@@ -1,6 +1,7 @@
 import { db } from "../utils/db.server";
 import crypto from "crypto";
 import { features } from "../utils/features";
+import { assertWithinLimit } from "../billing/billing.service";
 
 export type Organization = {
     id: number;
@@ -284,6 +285,8 @@ export const acceptInvite = async (inviteToken: string, userId: number) => {
     if (!invite) throw new Error("Convite não encontrado");
     if (invite.acceptedAt) throw new Error("Convite já utilizado");
     if (invite.expiresAt < new Date()) throw new Error("Convite expirado");
+
+    await assertWithinLimit("seats", { organizationId: invite.organizationId, increment: 1 });
 
     await db.$transaction([
         db.organizationInvite.update({
