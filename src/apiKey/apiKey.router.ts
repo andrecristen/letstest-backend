@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
-import { requireOrgRole } from "../utils/permissions";
+import { requireOrgRole, requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 
 import * as ApiKeyService from "./apiKey.service";
 
@@ -13,6 +13,7 @@ apiKeyRouter.get("/", token.authMiddleware, tenantMiddleware, async (request: Re
   // #swagger.tags = ['ApiKeys']
   // #swagger.description = 'Lista API keys da organizacao.'
   try {
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const organizationId = request.organizationId!;
     if (!requireOrgRole(request, response, ["owner", "admin"])) return;
     const access = await ApiKeyService.validateApiAccess(organizationId);
@@ -43,6 +44,7 @@ apiKeyRouter.post(
       return response.status(400).json({ errors: errors.array() });
     }
     try {
+      if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
       const organizationId = request.organizationId!;
       if (!requireOrgRole(request, response, ["owner", "admin"])) return;
       const userId = request.user?.id;
@@ -81,6 +83,7 @@ apiKeyRouter.put(
     // #swagger.tags = ['ApiKeys']
     // #swagger.description = 'Atualiza uma API key.'
   try {
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const organizationId = request.organizationId!;
     if (!requireOrgRole(request, response, ["owner", "admin"])) return;
     const id = parseInt(request.params.id);
@@ -116,6 +119,7 @@ apiKeyRouter.delete("/:id", token.authMiddleware, tenantMiddleware, async (reque
   // #swagger.tags = ['ApiKeys']
   // #swagger.description = 'Remove uma API key.'
   try {
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const organizationId = request.organizationId!;
     if (!requireOrgRole(request, response, ["owner", "admin"])) return;
     const id = parseInt(request.params.id);

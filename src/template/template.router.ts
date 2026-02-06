@@ -4,7 +4,7 @@ import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
-import { ensureProjectAccess } from "../utils/permissions";
+import { ensureProjectAccess, requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 
 import * as TemplateService from "./template.service";
 
@@ -13,6 +13,7 @@ export const templateRouter = express.Router();
 templateRouter.get("/defaults/:type", token.authMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Templates']
     // #swagger.description = 'Lista templates padrao por tipo (paginado).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const type: number = parseInt(request.params.type);
     try {
         const pagination = getPaginationParams(request.query);
@@ -28,6 +29,7 @@ templateRouter.get("/defaults/:type", token.authMiddleware, async (request: Requ
 templateRouter.get("/:projectId/all", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Templates']
     // #swagger.description = 'Lista templates do projeto e templates padrao (paginado).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const projectId: number = parseInt(request.params.projectId);
     try {
         const access = await ensureProjectAccess(request, response, projectId, {
@@ -53,6 +55,7 @@ templateRouter.get("/:projectId/all", token.authMiddleware, tenantMiddleware, as
 templateRouter.get("/:projectId/:type", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Templates']
     // #swagger.description = 'Lista templates do projeto por tipo (inclui padroes).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const projectId: number = parseInt(request.params.projectId);
     const type: number = parseInt(request.params.type);
     try {
@@ -85,6 +88,7 @@ templateRouter.get("/:projectId/:type", token.authMiddleware, tenantMiddleware, 
 templateRouter.get("/:templateId", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Templates']
     // #swagger.description = 'Busca um template por id.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.templateId);
     try {
         const template = await TemplateService.find(id);
@@ -108,6 +112,7 @@ templateRouter.get("/:templateId", token.authMiddleware, tenantMiddleware, async
 templateRouter.post("/:projectId", token.authMiddleware, tenantMiddleware, body("name").isString(), body("description").isString(), body("type").isNumeric(), body("data").isObject(), async (request: Request, response: Response) => {
     // #swagger.tags = ['Templates']
     // #swagger.description = 'Cria um template no projeto.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });

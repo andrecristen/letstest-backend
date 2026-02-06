@@ -5,7 +5,7 @@ import { token } from "../utils/token.server";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 import { db } from "../utils/db.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
-import { ensureProjectAccess } from "../utils/permissions";
+import { ensureProjectAccess, requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 
 import * as TestScenarioService from "./testScenario.service";
 import * as ProjectService from "../project/project.service";
@@ -16,6 +16,7 @@ export const testScenarioRouter = express.Router();
 testScenarioRouter.get("/project/:projectId", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestScenarios']
     // #swagger.description = 'Lista cenarios de teste de um projeto (paginado).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
         const projectId: number = parseInt(request.params.projectId);
         if (!projectId) {
@@ -38,6 +39,7 @@ testScenarioRouter.get("/project/:projectId", token.authMiddleware, tenantMiddle
 testScenarioRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestScenarios']
     // #swagger.description = 'Busca um cenario de teste por id.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     try {
         const testScenario = await TestScenarioService.find(id);
@@ -67,6 +69,7 @@ testScenarioRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (re
 testScenarioRouter.post("/:projectId", token.authMiddleware, tenantMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TestScenarios']
     // #swagger.description = 'Cria um cenario de teste no projeto.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });
@@ -121,6 +124,7 @@ testScenarioRouter.post("/:projectId", token.authMiddleware, tenantMiddleware, b
 testScenarioRouter.put("/:id/status", token.authMiddleware, tenantMiddleware, body("status").isNumeric(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TestScenarios']
     // #swagger.description = 'Atualiza o status de aprovacao do cenario de teste.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
@@ -175,6 +179,7 @@ testScenarioRouter.put("/:id/status", token.authMiddleware, tenantMiddleware, bo
 testScenarioRouter.put("/:id", token.authMiddleware, tenantMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TestScenarios']
     // #swagger.description = 'Atualiza um cenario de teste (sem execucoes).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     const errors = validationResult(request);
     if (!errors.isEmpty()) {

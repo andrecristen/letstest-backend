@@ -5,6 +5,7 @@ import { token } from "../utils/token.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
 import {uploadToS3, getBucketName} from "../utils/s3.server";
 import { assertWithinLimit, recordUsage, LimitExceededError } from "../billing/billing.service";
+import { requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 
 import * as FileService from "./file.service";
 
@@ -16,6 +17,7 @@ const upload = multer({ storage: storage })
 fileRouter.post('/upload', token.authMiddleware, tenantMiddleware, upload.single('file'), async (request: Request, response: Response) => {
     // #swagger.tags = ['Files']
     // #swagger.description = 'Faz upload de arquivo e registra no sistema.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     if (!request.file) {
         return response.status(400).send('Nenhum arquivo carregado');
     }

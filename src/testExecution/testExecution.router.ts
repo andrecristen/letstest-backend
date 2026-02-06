@@ -5,7 +5,7 @@ import { token } from "../utils/token.server";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 import { db } from "../utils/db.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
-import { ensureProjectAccess, getProjectIdByTestCase, getProjectIdByTestExecution } from "../utils/permissions";
+import { ensureProjectAccess, getProjectIdByTestCase, getProjectIdByTestExecution, requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 
 import * as TestExecutionService from "./testExecution.service";
 import * as ProjectService from "../project/project.service";
@@ -17,6 +17,7 @@ export const testExecutionRouter = express.Router();
 testExecutionRouter.get("/test-case/:testCaseId", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestExecutions']
     // #swagger.description = 'Lista execucoes de um caso de teste (paginado).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const testCaseId: number = parseInt(request.params.testCaseId);
     try {
         const projectId = await getProjectIdByTestCase(testCaseId);
@@ -44,6 +45,7 @@ testExecutionRouter.get("/test-case/:testCaseId", token.authMiddleware, tenantMi
 testExecutionRouter.get("/test-case/:testCaseId/my", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestExecutions']
     // #swagger.description = 'Lista minhas execucoes de um caso de teste (paginado).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const testCaseId: number = parseInt(request.params.testCaseId);
     const userId = request.user?.id;
     try {
@@ -68,6 +70,7 @@ testExecutionRouter.get("/test-case/:testCaseId/my", token.authMiddleware, tenan
 testExecutionRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestExecutions']
     // #swagger.description = 'Busca uma execucao de teste por id.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     try {
         const projectId = await getProjectIdByTestExecution(id);
@@ -94,6 +97,7 @@ testExecutionRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (r
 testExecutionRouter.post("/:testCaseId", token.authMiddleware, tenantMiddleware, body("testTime").isNumeric(), body("data").isObject(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TestExecutions']
     // #swagger.description = 'Cria uma execucao para um caso de teste.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });

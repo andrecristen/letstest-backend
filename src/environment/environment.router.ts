@@ -4,7 +4,7 @@ import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 import { tenantMiddleware } from "../utils/tenant.middleware";
-import { ensureProjectAccess } from "../utils/permissions";
+import { ensureProjectAccess, requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 
 import * as EnvironmentCaseService from "./environment.service";
 
@@ -13,6 +13,7 @@ export const environmentRouter = express.Router();
 environmentRouter.get("/project/:projectId", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Environments']
     // #swagger.description = 'Lista ambientes de um projeto (paginado).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
         const projectId: number = parseInt(request.params.projectId);
         if (!projectId) {
@@ -35,6 +36,7 @@ environmentRouter.get("/project/:projectId", token.authMiddleware, tenantMiddlew
 environmentRouter.get("/:id",  token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Environments']
     // #swagger.description = 'Busca um ambiente por id.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     try {
         const environment = await EnvironmentCaseService.find(id);
@@ -54,6 +56,7 @@ environmentRouter.get("/:id",  token.authMiddleware, tenantMiddleware, async (re
 environmentRouter.post("/:projectId", token.authMiddleware, tenantMiddleware, body("name").isString(), body("description").isString(), async (request: Request, response: Response) => {
     // #swagger.tags = ['Environments']
     // #swagger.description = 'Cria um ambiente para o projeto.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });
@@ -75,6 +78,7 @@ environmentRouter.post("/:projectId", token.authMiddleware, tenantMiddleware, bo
 environmentRouter.put("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Environments']
     // #swagger.description = 'Atualiza um ambiente.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     try {
         const environment = await EnvironmentCaseService.find(id);

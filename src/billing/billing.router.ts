@@ -2,7 +2,7 @@ import express from "express";
 import type { Request, Response } from "express";
 import { token } from "../utils/token.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
-import { requireOrgRole } from "../utils/permissions";
+import { requireOrgRole, requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 import { features } from "../utils/features";
 import { PlanKey } from "./plans.config";
 import { createCheckoutSession, createPortalSession, getBillingPlans, getSubscriptionSummary, getUsageSummary, handleStripeWebhook, syncPlansFromStripe } from "./billing.service";
@@ -14,7 +14,8 @@ interface RequestWithRawBody extends Request {
 
 export const billingRouter = express.Router();
 
-billingRouter.get("/plans", token.authMiddleware, tenantMiddleware, async (_request: Request, response: Response) => {
+billingRouter.get("/plans", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+  if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     const plans = await getBillingPlans();
     return response.status(200).json(plans);
@@ -24,6 +25,7 @@ billingRouter.get("/plans", token.authMiddleware, tenantMiddleware, async (_requ
 });
 
 billingRouter.get("/subscription", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+  if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     if (!requireOrgRole(request, response, ["owner", "admin"])) return;
     const organizationId = request.organizationId!;
@@ -35,6 +37,7 @@ billingRouter.get("/subscription", token.authMiddleware, tenantMiddleware, async
 });
 
 billingRouter.get("/usage", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+  if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     if (!requireOrgRole(request, response, ["owner", "admin"])) return;
     const organizationId = request.organizationId!;
@@ -46,6 +49,7 @@ billingRouter.get("/usage", token.authMiddleware, tenantMiddleware, async (reque
 });
 
 billingRouter.post("/checkout", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+  if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     if (!requireOrgRole(request, response, ["owner", "admin"])) return;
     if (!features.billingEnabled) {
@@ -64,6 +68,7 @@ billingRouter.post("/checkout", token.authMiddleware, tenantMiddleware, async (r
 });
 
 billingRouter.post("/portal", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+  if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     if (!requireOrgRole(request, response, ["owner", "admin"])) return;
     if (!features.billingEnabled) {
@@ -78,6 +83,7 @@ billingRouter.post("/portal", token.authMiddleware, tenantMiddleware, async (req
 });
 
 billingRouter.post("/plans/sync", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+  if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     if (!requireOrgRole(request, response, ["owner", "admin"])) return;
     if (!features.billingEnabled) {

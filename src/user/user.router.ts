@@ -4,6 +4,7 @@ import { body, validationResult } from "express-validator";
 import { crypt } from "../utils/crypt.server";
 import { token, TokenPayload } from "../utils/token.server";
 import { getPaginationParams } from "../utils/pagination";
+import { requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 
 import * as UserService from "./user.service";
 import * as OrganizationService from "../organization/organization.service";
@@ -78,6 +79,7 @@ userRouter.post("/register", body("email").isString(), body("name").isString(), 
 userRouter.put("/:id", token.authMiddleware, body("email").isString(), body("name").isString(), async (request: Request, response: Response) => {
     // #swagger.tags = ['Users']
     // #swagger.description = 'Atualiza dados do usuario autenticado.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });
@@ -98,6 +100,7 @@ userRouter.put("/:id", token.authMiddleware, body("email").isString(), body("nam
 userRouter.get("/", token.authMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Users']
     // #swagger.description = 'Lista usuarios.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
         const users = await UserService.list();
         return response.status(200).json(users);
@@ -109,6 +112,7 @@ userRouter.get("/", token.authMiddleware, async (request: Request, response: Res
 userRouter.get("/search", token.authMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Users']
     // #swagger.description = 'Busca usuarios com filtros e paginacao.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
         const pagination = getPaginationParams(request.query);
         const search = typeof request.query.search === "string" ? request.query.search.trim() : "";
@@ -144,6 +148,7 @@ userRouter.get("/search", token.authMiddleware, async (request: Request, respons
 userRouter.get("/:id", token.authMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Users']
     // #swagger.description = 'Busca usuario por id.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     try {
         const user = await UserService.find(id);
@@ -261,6 +266,7 @@ userRouter.post('/auth/refresh', body("refreshToken").isString(), body("organiza
 userRouter.post('/auth/switch-org', token.authMiddleware, body("organizationId").isNumeric(), async (req: Request, res: Response) => {
     // #swagger.tags = ['Users']
     // #swagger.description = 'Troca a organizacao ativa do usuario.'
+    if (!requireSystemAccess(req, res, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });

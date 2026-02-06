@@ -5,6 +5,7 @@ import { token } from "../utils/token.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
 import { sendInviteEmail } from "../utils/email.server";
 import { recordAuditLog } from "../utils/audit.middleware";
+import { requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 
 import * as OrganizationService from "./organization.service";
 import { dispatchEvent } from "../webhook/webhook.service";
@@ -20,6 +21,7 @@ export const organizationRouter = express.Router();
 organizationRouter.get("/", token.authMiddleware, async (req: Request, res: Response) => {
     // #swagger.tags = ['Organizations']
     // #swagger.description = 'Lista organizacoes do usuario autenticado.'
+    if (!requireSystemAccess(req, res, USER_ACCESS_LEVEL)) return;
     try {
         const userId = req.user?.id;
         const organizations = await OrganizationService.findByUserId(userId);
@@ -33,6 +35,7 @@ organizationRouter.get("/", token.authMiddleware, async (req: Request, res: Resp
 organizationRouter.post("/", token.authMiddleware, body("name").isString(), async (req: Request, res: Response) => {
     // #swagger.tags = ['Organizations']
     // #swagger.description = 'Cria uma organizacao.'
+    if (!requireSystemAccess(req, res, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -68,6 +71,7 @@ organizationRouter.post("/", token.authMiddleware, body("name").isString(), asyn
 organizationRouter.get("/my-invites", token.authMiddleware, async (req: Request, res: Response) => {
     // #swagger.tags = ['Organizations']
     // #swagger.description = 'Lista convites pendentes para o usuario.'
+    if (!requireSystemAccess(req, res, USER_ACCESS_LEVEL)) return;
     try {
         const userEmail = req.user?.email;
         if (!userEmail) {
@@ -84,6 +88,7 @@ organizationRouter.get("/my-invites", token.authMiddleware, async (req: Request,
 organizationRouter.post("/invite/accept", token.authMiddleware, body("token").isString(), async (req: Request, res: Response) => {
     // #swagger.tags = ['Organizations']
     // #swagger.description = 'Aceita um convite de organizacao.'
+    if (!requireSystemAccess(req, res, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -141,6 +146,7 @@ organizationRouter.post("/invite/accept", token.authMiddleware, body("token").is
 organizationRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (req: Request, res: Response) => {
     // #swagger.tags = ['Organizations']
     // #swagger.description = 'Busca detalhes da organizacao ativa.'
+    if (!requireSystemAccess(req, res, USER_ACCESS_LEVEL)) return;
     try {
         const org = await OrganizationService.find(req.organizationId!);
         if (!org) {
@@ -156,6 +162,7 @@ organizationRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (re
 organizationRouter.put("/:id", token.authMiddleware, tenantMiddleware, body("name").isString(), async (req: Request, res: Response) => {
     // #swagger.tags = ['Organizations']
     // #swagger.description = 'Atualiza dados da organizacao.'
+    if (!requireSystemAccess(req, res, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -183,6 +190,7 @@ organizationRouter.put("/:id", token.authMiddleware, tenantMiddleware, body("nam
 organizationRouter.get("/:id/members", token.authMiddleware, tenantMiddleware, async (req: Request, res: Response) => {
     // #swagger.tags = ['Organizations']
     // #swagger.description = 'Lista membros e convites pendentes da organizacao.'
+    if (!requireSystemAccess(req, res, USER_ACCESS_LEVEL)) return;
     try {
         if (req.organizationRole !== "owner" && req.organizationRole !== "admin") {
             return res.status(403).json({ error: "Apenas owners e admins podem ver membros" });
@@ -201,6 +209,7 @@ organizationRouter.get("/:id/members", token.authMiddleware, tenantMiddleware, a
 organizationRouter.get("/:id/invites", token.authMiddleware, tenantMiddleware, async (req: Request, res: Response) => {
     // #swagger.tags = ['Organizations']
     // #swagger.description = 'Lista apenas convites pendentes da organizacao.'
+    if (!requireSystemAccess(req, res, USER_ACCESS_LEVEL)) return;
     try {
         if (req.organizationRole !== "owner" && req.organizationRole !== "admin") {
             return res.status(403).json({ error: "Apenas owners e admins podem ver convites" });
@@ -216,6 +225,7 @@ organizationRouter.get("/:id/invites", token.authMiddleware, tenantMiddleware, a
 organizationRouter.post("/:id/members/invite", token.authMiddleware, tenantMiddleware, body("email").isEmail(), async (req: Request, res: Response) => {
     // #swagger.tags = ['Organizations']
     // #swagger.description = 'Cria convite para membro na organizacao.'
+    if (!requireSystemAccess(req, res, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -275,6 +285,7 @@ organizationRouter.post("/:id/members/invite", token.authMiddleware, tenantMiddl
 organizationRouter.delete("/:id/invites/:inviteId", token.authMiddleware, tenantMiddleware, async (req: Request, res: Response) => {
     // #swagger.tags = ['Organizations']
     // #swagger.description = 'Cancela um convite pendente.'
+    if (!requireSystemAccess(req, res, USER_ACCESS_LEVEL)) return;
     try {
         if (req.organizationRole !== "owner" && req.organizationRole !== "admin") {
             return res.status(403).json({ error: "Apenas owners e admins podem cancelar convites" });
@@ -291,6 +302,7 @@ organizationRouter.delete("/:id/invites/:inviteId", token.authMiddleware, tenant
 organizationRouter.post("/:id/invites/:inviteId/resend", token.authMiddleware, tenantMiddleware, async (req: Request, res: Response) => {
     // #swagger.tags = ['Organizations']
     // #swagger.description = 'Reenvia um convite pendente.'
+    if (!requireSystemAccess(req, res, USER_ACCESS_LEVEL)) return;
     try {
         if (req.organizationRole !== "owner" && req.organizationRole !== "admin") {
             return res.status(403).json({ error: "Apenas owners e admins podem reenviar convites" });
@@ -325,6 +337,7 @@ organizationRouter.post("/:id/invites/:inviteId/resend", token.authMiddleware, t
 organizationRouter.put("/:id/members/:userId/role", token.authMiddleware, tenantMiddleware, body("role").isString(), async (req: Request, res: Response) => {
     // #swagger.tags = ['Organizations']
     // #swagger.description = 'Atualiza o papel (role) de um membro.'
+    if (!requireSystemAccess(req, res, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -358,6 +371,7 @@ organizationRouter.put("/:id/members/:userId/role", token.authMiddleware, tenant
 organizationRouter.delete("/:id/members/:userId", token.authMiddleware, tenantMiddleware, async (req: Request, res: Response) => {
     // #swagger.tags = ['Organizations']
     // #swagger.description = 'Remove um membro da organizacao.'
+    if (!requireSystemAccess(req, res, USER_ACCESS_LEVEL)) return;
     try {
         if (req.organizationRole !== "owner" && req.organizationRole !== "admin") {
             return res.status(403).json({ error: "Apenas owners e admins podem remover membros" });

@@ -5,6 +5,7 @@ import { InvolvementType } from "../involvement/involvement.service";
 
 export type OrganizationRole = "owner" | "admin" | "member";
 export type ProjectRole = "owner" | "manager" | "tester" | "none";
+export const USER_ACCESS_LEVEL = 1;
 export const SYSTEM_ACCESS_LEVEL = 99;
 
 const resolveProjectRole = (

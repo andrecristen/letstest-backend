@@ -4,7 +4,7 @@ import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
-import { ensureProjectAccess } from "../utils/permissions";
+import { ensureProjectAccess, requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 import { recordAuditLog } from "../utils/audit.middleware";
 
 import * as ProjectService from "./project.service";
@@ -16,6 +16,7 @@ export const projectRouter = express.Router();
 projectRouter.get("/me", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Projects']
     // #swagger.description = 'Lista projetos do usuario na organizacao (paginado).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
         const userId = parseInt(request.user?.id);
         const organizationId = request.organizationId!;
@@ -56,6 +57,7 @@ projectRouter.get("/me", token.authMiddleware, tenantMiddleware, async (request:
 projectRouter.get("/test", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Projects']
     // #swagger.description = 'Lista projetos em que o usuario participa (paginado).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
         const userId = parseInt(request.user?.id);
         const organizationId = request.organizationId!;
@@ -80,6 +82,7 @@ projectRouter.get("/test", token.authMiddleware, tenantMiddleware, async (reques
 projectRouter.get("/public", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Projects']
     // #swagger.description = 'Lista projetos publicos disponiveis para candidatura (paginado).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
         const userId = parseInt(request.user?.id);
         const organizationId = request.organizationId!;
@@ -109,6 +112,7 @@ projectRouter.get("/public", token.authMiddleware, tenantMiddleware, async (requ
 projectRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Projects']
     // #swagger.description = 'Busca um projeto por id.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     try {
         const access = await ensureProjectAccess(request, response, id, {
@@ -126,6 +130,7 @@ projectRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (request
 projectRouter.post("/", token.authMiddleware, tenantMiddleware, body("name").isString(), body("description").isString(), async (request: Request, response: Response) => {
     // #swagger.tags = ['Projects']
     // #swagger.description = 'Cria um projeto.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });
@@ -163,6 +168,7 @@ projectRouter.post("/", token.authMiddleware, tenantMiddleware, body("name").isS
 projectRouter.put("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Projects']
     // #swagger.description = 'Atualiza um projeto.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     try {
         const userId = request.user?.id;
@@ -198,6 +204,7 @@ projectRouter.put("/:id", token.authMiddleware, tenantMiddleware, async (request
 projectRouter.get("/:id/overview", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Projects']
     // #swagger.description = 'Retorna indicadores/resumo do projeto.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     try {
         const access = await ensureProjectAccess(request, response, id, {

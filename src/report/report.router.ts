@@ -4,7 +4,7 @@ import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 import { tenantMiddleware } from "../utils/tenant.middleware";
-import { ensureProjectAccess, getProjectIdByReport, getProjectIdByTestExecution } from "../utils/permissions";
+import { ensureProjectAccess, getProjectIdByReport, getProjectIdByTestExecution, requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 
 import * as ReportService from "./report.service";
 import * as NotificationService from "../notification/notification.service";
@@ -16,6 +16,7 @@ export const reportRouter = express.Router();
 reportRouter.get("/test-execution/:testExecutionId", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Reports']
     // #swagger.description = 'Lista relatorios de uma execucao de teste (paginado).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const testExecutionId: number = parseInt(request.params.testExecutionId);
     try {
         const projectId = await getProjectIdByTestExecution(testExecutionId);
@@ -43,6 +44,7 @@ reportRouter.get("/test-execution/:testExecutionId", token.authMiddleware, tenan
 reportRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Reports']
     // #swagger.description = 'Busca um relatorio por id.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     try {
         const projectId = await getProjectIdByReport(id);
@@ -69,6 +71,7 @@ reportRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (request:
 reportRouter.post("/:testExecutionId", token.authMiddleware, tenantMiddleware, body("type").isNumeric(), body("score").isNumeric(), body("commentary").isString(), async (request: Request, response: Response) => {
     // #swagger.tags = ['Reports']
     // #swagger.description = 'Cria um relatorio para uma execucao de teste.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });

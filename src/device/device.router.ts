@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
+import { requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 
 import * as DeviceService from "./device.service";
 
@@ -11,6 +12,7 @@ export const deviceRouter = express.Router();
 deviceRouter.get("/:userId",  token.authMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Devices']
     // #swagger.description = 'Lista dispositivos de um usuario (paginado).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const userId: number = parseInt(request.params.userId);
     try {
         const pagination = getPaginationParams(request.query);
@@ -26,6 +28,7 @@ deviceRouter.get("/:userId",  token.authMiddleware, async (request: Request, res
 deviceRouter.post("/:userId", token.authMiddleware, body("brand").isString(), body("model").isString(), body("system").isString(), body("type").isNumeric(), async (request: Request, response: Response) => {
     // #swagger.tags = ['Devices']
     // #swagger.description = 'Cadastra um dispositivo para o usuario autenticado.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
         const errors = validationResult(request);
         if (!errors.isEmpty()) {
@@ -46,6 +49,7 @@ deviceRouter.post("/:userId", token.authMiddleware, body("brand").isString(), bo
 deviceRouter.delete("/:id", token.authMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Devices']
     // #swagger.description = 'Remove um dispositivo do usuario.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     try {
         const userId = request.user?.id;

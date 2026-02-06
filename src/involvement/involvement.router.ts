@@ -5,7 +5,7 @@ import { token } from "../utils/token.server";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 import { db } from "../utils/db.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
-import { ensureProjectAccess } from "../utils/permissions";
+import { ensureProjectAccess, requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 
 import * as InvolvementService from "./involvement.service";
 import * as ProjectService from "../project/project.service";
@@ -16,6 +16,7 @@ export const involvementRouter = express.Router();
 involvementRouter.get("/project/:projectId", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Involvements']
     // #swagger.description = 'Lista envolvimentos por projeto (paginado).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const projectId: number = parseInt(request.params.projectId);
     try {
         const access = await ensureProjectAccess(request, response, projectId, {
@@ -49,6 +50,7 @@ involvementRouter.get("/project/:projectId", token.authMiddleware, tenantMiddlew
 involvementRouter.get("/project/:projectId/testers", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Involvements']
     // #swagger.description = 'Lista testadores de um projeto.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
         const projectId: number = parseInt(request.params.projectId);
         if (!projectId) {
@@ -71,6 +73,7 @@ involvementRouter.get("/project/:projectId/testers", token.authMiddleware, tenan
 involvementRouter.get("/project/:projectId/my-role", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Involvements']
     // #swagger.description = 'Retorna o papel do usuario autenticado no projeto.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
         const projectId: number = parseInt(request.params.projectId);
         const userId = request.user?.id;
@@ -111,6 +114,7 @@ involvementRouter.post(
     async (request: Request, response: Response) => {
         // #swagger.tags = ['Involvements']
         // #swagger.description = 'Vincula um usuario a um projeto.'
+        if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
         try {
             const errors = validationResult(request);
             if (!errors.isEmpty()) {
@@ -166,6 +170,7 @@ involvementRouter.post(
 involvementRouter.delete("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Involvements']
     // #swagger.description = 'Remove um envolvimento.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     try {
         const involvement = await InvolvementService.find(id);

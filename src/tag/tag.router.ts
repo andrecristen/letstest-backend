@@ -4,7 +4,7 @@ import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
-import { ensureProjectAccess, requireOrgRole } from "../utils/permissions";
+import { ensureProjectAccess, requireOrgRole, requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 
 import * as TagService from "./tag.service";
 import * as TagValueService from "./tagValue.service";
@@ -15,6 +15,7 @@ export const tagRouter = express.Router();
 tagRouter.get("/project/:projectId", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Tags']
     // #swagger.description = 'Lista tags de um projeto (inclui tags publicas da org).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const projectId: number = parseInt(request.params.projectId);
     try {
         const access = await ensureProjectAccess(request, response, projectId, {
@@ -39,6 +40,7 @@ tagRouter.get("/project/:projectId", token.authMiddleware, tenantMiddleware, asy
 tagRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['Tags']
     // #swagger.description = 'Busca uma tag por id.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     try {
         const tag = await TagService.find(id);
@@ -62,6 +64,7 @@ tagRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (request: Re
 tagRouter.post("/:projectId", token.authMiddleware, tenantMiddleware, body("name").isString(), async (request: Request, response: Response) => {
     // #swagger.tags = ['Tags']
     // #swagger.description = 'Cria uma tag para um projeto.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });
@@ -99,6 +102,7 @@ async function processAddTagValues(tagValues: TagValue[], newTagId: number) {
 tagRouter.put("/:id", token.authMiddleware, tenantMiddleware, body("name").isString(), body("situation").isNumeric(), async (request: Request, response: Response) => {
     // #swagger.tags = ['Tags']
     // #swagger.description = 'Atualiza dados de uma tag.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
@@ -145,6 +149,7 @@ async function processEditTagValues(tagValues: TagValue[],updatedTagId: number) 
 tagRouter.post("/value/:tagId", token.authMiddleware, tenantMiddleware, body("name").isString(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TagValues']
     // #swagger.description = 'Cria um valor para uma tag.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });
@@ -180,6 +185,7 @@ tagRouter.post("/value/:tagId", token.authMiddleware, tenantMiddleware, body("na
 tagRouter.put("/value/:tagValueid", token.authMiddleware, tenantMiddleware, body("name").isString(), body("situation").isNumeric(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TagValues']
     // #swagger.description = 'Atualiza um valor de tag.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.tagValueid);
     const errors = validationResult(request);
     if (!errors.isEmpty()) {

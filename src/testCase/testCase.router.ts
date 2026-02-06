@@ -5,7 +5,7 @@ import { token } from "../utils/token.server";
 import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination";
 import { db } from "../utils/db.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
-import { ensureProjectAccess, getProjectIdByTestCase } from "../utils/permissions";
+import { ensureProjectAccess, getProjectIdByTestCase, requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 
 import * as TestCaseService from "./testCase.service";
 import * as ProjectService from "../project/project.service";
@@ -17,6 +17,7 @@ export const testCaseRouter = express.Router();
 testCaseRouter.get("/project/:projectId", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Lista casos de teste de um projeto (paginado).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
         const projectId: number = parseInt(request.params.projectId);
         if (!projectId) {
@@ -44,6 +45,7 @@ testCaseRouter.get("/project/:projectId", token.authMiddleware, tenantMiddleware
 testCaseRouter.get("/project/:projectId/assigned", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Lista casos de teste designados ao usuario (paginado).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
         const projectId: number = parseInt(request.params.projectId);
         if (!projectId) {
@@ -79,6 +81,7 @@ testCaseRouter.get("/project/:projectId/assigned", token.authMiddleware, tenantM
 testCaseRouter.post("/:id/assignment/start", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Inicia a execucao de um caso de teste designado.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
         const testCaseId: number = parseInt(request.params.id);
         const userId = request.user?.id;
@@ -115,6 +118,7 @@ testCaseRouter.post("/:id/assignment/start", token.authMiddleware, tenantMiddlew
 testCaseRouter.post("/:id/assignment/pause", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Pausa a execucao de um caso de teste.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
         const testCaseId: number = parseInt(request.params.id);
         const userId = request.user?.id;
@@ -154,6 +158,7 @@ testCaseRouter.post("/:id/assignment/pause", token.authMiddleware, tenantMiddlew
 testCaseRouter.post("/:id/assignment/resume", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Retoma a execucao de um caso de teste.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
         const testCaseId: number = parseInt(request.params.id);
         const userId = request.user?.id;
@@ -197,6 +202,7 @@ testCaseRouter.post("/:id/assignment/resume", token.authMiddleware, tenantMiddle
 testCaseRouter.post("/:id/assignment/finish", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Finaliza a execucao de um caso de teste.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
         const testCaseId: number = parseInt(request.params.id);
         const userId = request.user?.id;
@@ -233,6 +239,7 @@ testCaseRouter.post("/:id/assignment/finish", token.authMiddleware, tenantMiddle
 testCaseRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Busca um caso de teste por id.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     try {
         const testCase = await TestCaseService.find(id);
@@ -252,6 +259,7 @@ testCaseRouter.get("/:id", token.authMiddleware, tenantMiddleware, async (reques
 testCaseRouter.post("/:projectId", token.authMiddleware, tenantMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Cria um caso de teste no projeto.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
         return response.status(400).json({ errors: errors.array() });
@@ -320,6 +328,7 @@ testCaseRouter.post("/:projectId", token.authMiddleware, tenantMiddleware, body(
 testCaseRouter.put("/:id/status", token.authMiddleware, tenantMiddleware, body("status").isNumeric(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Atualiza o status de aprovacao do caso de teste.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
@@ -380,6 +389,7 @@ testCaseRouter.put("/:id/status", token.authMiddleware, tenantMiddleware, body("
 testCaseRouter.post("/:id/assign", token.authMiddleware, tenantMiddleware, body("userIds").isArray(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Designa testadores para um caso de teste.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
@@ -437,6 +447,7 @@ testCaseRouter.post("/:id/assign", token.authMiddleware, tenantMiddleware, body(
 testCaseRouter.put("/:id", token.authMiddleware, tenantMiddleware, body("name").isString(), body("data").isObject(), async (request: Request, response: Response) => {
     // #swagger.tags = ['TestCases']
     // #swagger.description = 'Atualiza um caso de teste (sem execucoes).'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const id: number = parseInt(request.params.id);
     const errors = validationResult(request);
     if (!errors.isEmpty()) {

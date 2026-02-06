@@ -6,7 +6,7 @@ import { buildPaginatedResponse, getPaginationParams } from "../utils/pagination
 import * as NotificationService from "./notification.service";
 import { db } from "../utils/db.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
-import { ensureProjectAccess } from "../utils/permissions";
+import { ensureProjectAccess, requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 
 export const notificationRouter = express.Router();
 
@@ -23,6 +23,7 @@ const allowCronOrAuth = (request: Request, response: Response, next: () => void)
 notificationRouter.get("/", token.authMiddleware, async (request: Request, response: Response) => {
   // #swagger.tags = ['Notifications']
   // #swagger.description = 'Lista notificacoes do usuario autenticado (paginado).'
+  if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     const userId = request.user?.id;
     if (!userId) return response.status(401).json({ error: "Usuario nao autenticado" });
@@ -50,6 +51,7 @@ notificationRouter.get("/", token.authMiddleware, async (request: Request, respo
 notificationRouter.get("/unread-count", token.authMiddleware, async (request: Request, response: Response) => {
   // #swagger.tags = ['Notifications']
   // #swagger.description = 'Retorna a quantidade de notificacoes nao lidas do usuario.'
+  if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     const userId = request.user?.id;
     if (!userId) return response.status(401).json({ error: "Usuario nao autenticado" });
@@ -63,6 +65,7 @@ notificationRouter.get("/unread-count", token.authMiddleware, async (request: Re
 notificationRouter.put("/read/:notificationId", token.authMiddleware, async (request: Request, response: Response) => {
   // #swagger.tags = ['Notifications']
   // #swagger.description = 'Marca uma notificacao especifica como lida.'
+  if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     const userId = request.user?.id;
     if (!userId) return response.status(401).json({ error: "Usuario nao autenticado" });
@@ -82,6 +85,7 @@ notificationRouter.put("/read/:notificationId", token.authMiddleware, async (req
 notificationRouter.put("/read-all", token.authMiddleware, async (request: Request, response: Response) => {
   // #swagger.tags = ['Notifications']
   // #swagger.description = 'Marca todas as notificacoes do usuario como lidas.'
+  if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     const userId = request.user?.id;
     if (!userId) return response.status(401).json({ error: "Usuario nao autenticado" });
@@ -104,6 +108,7 @@ notificationRouter.post(
   async (request: Request, response: Response) => {
     // #swagger.tags = ['Notifications']
     // #swagger.description = 'Dispara notificacao de prazo excedido para um projeto.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
       return response.status(400).json({ errors: errors.array() });

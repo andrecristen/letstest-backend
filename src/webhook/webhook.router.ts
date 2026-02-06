@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
-import { requireOrgRole } from "../utils/permissions";
+import { requireOrgRole, requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 
 import * as WebhookService from "./webhook.service";
 
@@ -19,15 +19,17 @@ const VALID_EVENTS: WebhookService.WebhookEvent[] = [
   "involvement.accepted",
 ];
 
-webhookRouter.get("/events", token.authMiddleware, async (_request: Request, response: Response) => {
+webhookRouter.get("/events", token.authMiddleware, async (request: Request, response: Response) => {
   // #swagger.tags = ['Webhooks']
   // #swagger.description = 'Lista eventos de webhook disponiveis.'
+  if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   return response.status(200).json(VALID_EVENTS);
 });
 
 webhookRouter.get("/", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
   // #swagger.tags = ['Webhooks']
   // #swagger.description = 'Lista webhooks da organizacao.'
+  if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     const organizationId = request.organizationId!;
     if (!requireOrgRole(request, response, ["owner", "admin"])) return;
@@ -54,6 +56,7 @@ webhookRouter.post(
   async (request: Request, response: Response) => {
     // #swagger.tags = ['Webhooks']
     // #swagger.description = 'Cria um novo webhook.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
       return response.status(400).json({ errors: errors.array() });
@@ -109,6 +112,7 @@ webhookRouter.put(
   async (request: Request, response: Response) => {
     // #swagger.tags = ['Webhooks']
     // #swagger.description = 'Atualiza um webhook.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
       const organizationId = request.organizationId!;
       if (!requireOrgRole(request, response, ["owner", "admin"])) return;
@@ -143,6 +147,7 @@ webhookRouter.post(
   async (request: Request, response: Response) => {
     // #swagger.tags = ['Webhooks']
     // #swagger.description = 'Regenera o secret de um webhook.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
       const organizationId = request.organizationId!;
       if (!requireOrgRole(request, response, ["owner", "admin"])) return;
@@ -168,6 +173,7 @@ webhookRouter.get(
   async (request: Request, response: Response) => {
     // #swagger.tags = ['Webhooks']
     // #swagger.description = 'Lista entregas de um webhook.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     try {
       const organizationId = request.organizationId!;
       if (!requireOrgRole(request, response, ["owner", "admin"])) return;
@@ -189,6 +195,7 @@ webhookRouter.get(
 webhookRouter.delete("/:id", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
   // #swagger.tags = ['Webhooks']
   // #swagger.description = 'Remove um webhook.'
+  if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     const organizationId = request.organizationId!;
     if (!requireOrgRole(request, response, ["owner", "admin"])) return;

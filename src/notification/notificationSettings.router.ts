@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { token } from "../utils/token.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
-import { ensureProjectAccess } from "../utils/permissions";
+import { ensureProjectAccess, requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 import * as NotificationSettingsService from "./notificationSettings.service";
 
 export const notificationSettingsRouter = express.Router();
@@ -11,6 +11,7 @@ export const notificationSettingsRouter = express.Router();
 // #swagger.tags = ['NotificationSettings']
 // #swagger.description = 'Obtem configuracoes de notificacao de um projeto.'
 notificationSettingsRouter.get("/:projectId", token.authMiddleware, tenantMiddleware, async (request: Request, response: Response) => {
+  if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
   try {
     const projectId = parseInt(request.params.projectId, 10);
     if (!projectId) return response.status(400).json({ error: "Projeto invalido" });
@@ -40,6 +41,7 @@ notificationSettingsRouter.put(
   async (request: Request, response: Response) => {
     // #swagger.tags = ['NotificationSettings']
     // #swagger.description = 'Atualiza configuracoes de notificacao do projeto.'
+    if (!requireSystemAccess(request, response, USER_ACCESS_LEVEL)) return;
     const errors = validationResult(request);
     if (!errors.isEmpty()) {
       return response.status(400).json({ errors: errors.array() });
