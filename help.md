@@ -82,7 +82,6 @@ STRIPE_PRICE_PRO=price_...
 STRIPE_PRICE_ENTERPRISE=price_...
 STRIPE_SUCCESS_URL=http://localhost:3000/billing/success
 STRIPE_CANCEL_URL=http://localhost:3000/billing
-STRIPE_PORTAL_RETURN_URL=http://localhost:3000/billing
 ```
 
 #### 5) Migracao e client do Prisma
@@ -93,7 +92,7 @@ npx prisma generate
 
 #### 6) Fluxo esperado
 - **Checkout** cria o `stripeCustomerId` (um customer por organizacao).
-- O **Portal** usa esse customer para mostrar faturas e plano.
+- O **Portal** usa esse customer para mostrar faturas e plano. Envie `returnUrl` no POST `/api/billing/portal` quando quiser controlar o retorno.
 - Webhooks atualizam status/periodos da assinatura.
 
 #### Observacoes

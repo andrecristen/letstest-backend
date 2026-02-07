@@ -16,5 +16,4 @@ export const stripeConfig = {
   webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
   successUrl: process.env.STRIPE_SUCCESS_URL ?? "http://localhost:3000/billing/success",
   cancelUrl: process.env.STRIPE_CANCEL_URL ?? "http://localhost:3000/billing",
-  portalReturnUrl: process.env.STRIPE_PORTAL_RETURN_URL ?? "http://localhost:3000/billing",
 };

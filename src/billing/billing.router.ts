@@ -84,8 +84,24 @@ billingRouter.post("/portal", token.authMiddleware, tenantMiddleware, async (req
     if (!features.billingEnabled) {
       return response.status(400).json({ error: "Billing disabled" });
     }
+    const rawReturnUrl = request.body?.returnUrl;
+    let returnUrl: string | undefined;
+    if (rawReturnUrl !== undefined && rawReturnUrl !== null) {
+      if (typeof rawReturnUrl !== "string" || !rawReturnUrl.trim()) {
+        return response.status(400).json({ error: "returnUrl inválida" });
+      }
+      try {
+        const parsed = new URL(rawReturnUrl);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          return response.status(400).json({ error: "returnUrl inválida" });
+        }
+      } catch {
+        return response.status(400).json({ error: "returnUrl inválida" });
+      }
+      returnUrl = rawReturnUrl;
+    }
     const organizationId = request.organizationId!;
-    const session = await createPortalSession(organizationId);
+    const session = await createPortalSession(organizationId, returnUrl);
     return response.status(200).json({ url: session.url });
   } catch (error: any) {
     return response.status(500).json({ error: error.message });

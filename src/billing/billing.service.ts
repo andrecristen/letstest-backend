@@ -584,7 +584,7 @@ export const createCheckoutSession = async (organizationId: number, planKey: Pla
   return session;
 };
 
-export const createPortalSession = async (organizationId: number) => {
+export const createPortalSession = async (organizationId: number, returnUrl?: string) => {
   if (!features.billingEnabled) {
     throw new Error("Billing disabled");
   }
@@ -592,10 +592,13 @@ export const createPortalSession = async (organizationId: number) => {
   if (!subscription.stripeCustomerId) {
     throw new Error("Customer not found");
   }
-  return stripe.billingPortal.sessions.create({
+  const params: Stripe.BillingPortal.SessionCreateParams = {
     customer: subscription.stripeCustomerId,
-    return_url: stripeConfig.portalReturnUrl,
-  });
+  };
+  if (returnUrl) {
+    params.return_url = returnUrl;
+  }
+  return stripe.billingPortal.sessions.create(params);
 };
 
 export const handleStripeWebhook = async (event: Stripe.Event) => {
