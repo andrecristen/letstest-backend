@@ -113,11 +113,17 @@ async function resetDatabase() {
   await prisma.subscription.deleteMany();
   await prisma.organizationInvite.deleteMany();
   await prisma.organizationMember.deleteMany();
+  await prisma.auditLog.deleteMany();
+  await prisma.webhookDelivery.deleteMany();
+  await prisma.apiKey.deleteMany();
+  await prisma.webhook.deleteMany();
   await prisma.project.deleteMany();
   await prisma.file.deleteMany();
   await prisma.device.deleteMany();
   await prisma.hability.deleteMany();
+  await prisma.billingPlan.deleteMany();
   await prisma.organization.deleteMany();
+  await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
 }
 
@@ -142,6 +148,17 @@ async function main() {
 
   const orgLab = await prisma.organization.create({
     data: { name: "Lab Experimentos", slug: "lab-experimentos", plan: "enterprise" },
+  });
+
+  const sysAdmin = await prisma.user.create({
+    data: {
+      name: "System Admin",
+      email: "admin@letstest.com",
+      password: passwordHash,
+      access: 99,
+      bio: "Administrador do sistema com acesso total.",
+      defaultOrgId: orgDemo.id,
+    },
   });
 
   const owner = await prisma.user.create({
@@ -194,6 +211,7 @@ async function main() {
 
   await prisma.organizationMember.createMany({
     data: [
+      { organizationId: orgDemo.id, userId: sysAdmin.id, role: "owner" },
       { organizationId: orgDemo.id, userId: owner.id, role: "owner" },
       { organizationId: orgDemo.id, userId: manager.id, role: "admin" },
       ...testers.map((tester) => ({ organizationId: orgDemo.id, userId: tester.id, role: "member" })),
