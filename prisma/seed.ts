@@ -81,6 +81,7 @@ const buildTableData = (rows: any[]) =>
 const now = new Date();
 const daysFromNow = (days: number) => new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 const minutesAgo = (minutes: number) => new Date(now.getTime() - minutes * 60 * 1000);
+const MB = 1024 * 1024;
 
 declare const process: {
   env: Record<string, string | undefined>;
@@ -138,16 +139,40 @@ async function main() {
     throw new Error("Failed to hash default password.");
   }
 
+  await prisma.billingPlan.upsert({
+    where: { key: "free" },
+    create: {
+      key: "free",
+      name: "Free",
+      priceMonthlyCents: 0,
+      limits: {
+        seats: 3,
+        projects: 2,
+        test_cases: 50,
+        storage_bytes: 500 * MB,
+        test_executions: 200,
+      },
+      features: {
+        apiAccess: false,
+        webhooks: 0,
+        auditLogsDays: 0,
+      },
+      configured: true,
+      active: true,
+    },
+    update: {},
+  });
+
   const orgDemo = await prisma.organization.create({
     data: { name: "Letstest Demo", slug: "letstest-demo", plan: "free" },
   });
 
   const orgSandbox = await prisma.organization.create({
-    data: { name: "QA Sandbox", slug: "qa-sandbox", plan: "pro" },
+    data: { name: "QA Sandbox", slug: "qa-sandbox", plan: "free" },
   });
 
   const orgLab = await prisma.organization.create({
-    data: { name: "Lab Experimentos", slug: "lab-experimentos", plan: "enterprise" },
+    data: { name: "Lab Experimentos", slug: "lab-experimentos", plan: "free" },
   });
 
   const sysAdmin = await prisma.user.create({
@@ -221,13 +246,31 @@ async function main() {
     ],
   });
 
+  const subscriptionDemo = await prisma.subscription.create({
+    data: {
+      organizationId: orgDemo.id,
+      plan: "free",
+      status: "active",
+    },
+  });
+
   const subscription = await prisma.subscription.create({
     data: {
       organizationId: orgSandbox.id,
-      plan: "pro",
+      plan: "free",
       status: "active",
       currentPeriodStart: daysFromNow(-10),
       currentPeriodEnd: daysFromNow(20),
+    },
+  });
+
+  const subscriptionLab = await prisma.subscription.create({
+    data: {
+      organizationId: orgLab.id,
+      plan: "free",
+      status: "active",
+      currentPeriodStart: daysFromNow(-15),
+      currentPeriodEnd: daysFromNow(15),
     },
   });
 

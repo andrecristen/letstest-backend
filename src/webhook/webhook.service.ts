@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { db } from "../utils/db.server";
-import { getPlan } from "../billing/plans.config";
+import { getPlanDefinition } from "../billing/billing.service";
 import { features } from "../utils/features";
 
 export type WebhookEvent =
@@ -124,7 +124,7 @@ export const validateWebhookAccess = async (
 
   // Keep consistent with billing.service: Organization.plan is the source of truth.
   const planKey = organization?.plan ?? "free";
-  const plan = getPlan(planKey);
+  const plan = await getPlanDefinition(planKey);
   const webhookLimit = plan.features.webhooks;
 
   if (webhookLimit === 0) {

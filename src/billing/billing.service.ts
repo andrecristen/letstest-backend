@@ -1,6 +1,6 @@
 import { db } from "../utils/db.server";
 import { features } from "../utils/features";
-import { getPlan, MetricKey, PlanDefinition, PlanKey, PlanLimits, plans } from "./plans.config";
+import { MetricKey, PlanDefinition, PlanKey, PlanLimits } from "./plans.config";
 import { stripe, stripeConfig } from "./stripe.server";
 import type Stripe from "stripe";
 
@@ -16,13 +16,36 @@ export class LimitExceededError extends Error {
   }
 }
 
+const getDefaultPlanKey = async (): Promise<PlanKey> => {
+  await ensureFreePlan();
+  const pickPlan = async () =>
+    db.billingPlan.findFirst({
+      where: { active: true, configured: true },
+      orderBy: [{ priceMonthlyCents: "asc" }, { name: "asc" }],
+      select: { key: true },
+    });
+
+  let plan = await pickPlan();
+  if (!plan && features.billingEnabled) {
+    await syncPlansFromStripe({ allowEmpty: true });
+    plan = await pickPlan();
+  }
+
+  if (!plan) {
+    console.warn("[billing] No configured plans found. Falling back to 'free'.");
+  }
+
+  return plan?.key ?? "free";
+};
+
 const getOrCreateSubscription = async (organizationId: number) => {
   const existing = await db.subscription.findUnique({ where: { organizationId } });
   if (existing) return existing;
+  const defaultPlan = await getDefaultPlanKey();
   return db.subscription.create({
     data: {
       organizationId,
-      plan: "free",
+      plan: defaultPlan,
       status: "active",
     },
   });
@@ -51,24 +74,75 @@ const parseBoolean = (value?: string | boolean | null): boolean | undefined => {
   return undefined;
 };
 
-const normalizePlanKey = (value?: string | null): PlanKey | null => {
-  if (!value) return null;
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "free" || normalized === "pro" || normalized === "enterprise") {
-    return normalized as PlanKey;
-  }
-  if (normalized.includes("enterprise")) return "enterprise";
-  if (normalized.includes("pro")) return "pro";
-  if (normalized.includes("free")) return "free";
-  return null;
-};
-
 const limitKeys: MetricKey[] = ["seats", "projects", "test_cases", "storage_bytes", "test_executions"];
 const featureKeys: Array<keyof PlanDefinition["features"]> = [
   "apiAccess",
   "webhooks",
   "auditLogsDays",
 ];
+
+const DEFAULT_FREE_PLAN: PlanDefinition = {
+  key: "free",
+  name: "Free",
+  priceMonthlyCents: 0,
+  limits: {
+    seats: 3,
+    projects: 2,
+    test_cases: 50,
+    storage_bytes: 500 * 1024 * 1024,
+    test_executions: 200,
+  },
+  features: {
+    apiAccess: false,
+    webhooks: 0,
+    auditLogsDays: 0,
+  },
+};
+
+const ensureFreePlan = async () => {
+  const existing = await db.billingPlan.findUnique({
+    where: { key: "free" },
+    select: { id: true },
+  });
+  if (existing) return;
+  await db.billingPlan.create({
+    data: {
+      key: DEFAULT_FREE_PLAN.key,
+      name: DEFAULT_FREE_PLAN.name,
+      priceMonthlyCents: DEFAULT_FREE_PLAN.priceMonthlyCents,
+      limits: DEFAULT_FREE_PLAN.limits,
+      features: DEFAULT_FREE_PLAN.features,
+      configured: true,
+      active: true,
+      stripeProductId: null,
+      stripePriceId: null,
+    },
+  });
+};
+
+const normalizePlanDefinition = (plan: {
+  key: PlanKey;
+  name: string;
+  priceMonthlyCents: number | null;
+  limits?: Partial<PlanLimits> | null;
+  features?: Partial<PlanDefinition["features"]> | null;
+}): PlanDefinition => ({
+  key: plan.key,
+  name: plan.name,
+  priceMonthlyCents: plan.priceMonthlyCents ?? null,
+  limits: {
+    seats: plan.limits?.seats ?? null,
+    projects: plan.limits?.projects ?? null,
+    test_cases: plan.limits?.test_cases ?? null,
+    storage_bytes: plan.limits?.storage_bytes ?? null,
+    test_executions: plan.limits?.test_executions ?? null,
+  },
+  features: {
+    apiAccess: plan.features?.apiAccess ?? false,
+    webhooks: plan.features?.webhooks ?? null,
+    auditLogsDays: plan.features?.auditLogsDays ?? null,
+  },
+});
 
 const normalizeDbPlanKey = (value?: string | null): string | null => {
   if (!value) return null;
@@ -149,28 +223,20 @@ const hasAllKeys = (value: Record<string, unknown>, keys: string[]) =>
   keys.every((key) => Object.prototype.hasOwnProperty.call(value, key));
 
 export const isPlanConfigured = (params: {
+  planKey?: string | null;
   stripePriceId?: string | null;
   limits?: Record<string, unknown> | null;
   features?: Record<string, unknown> | null;
 }) => {
-  if (!params.stripePriceId) return false;
   if (!params.limits || !params.features) return false;
   const limitsOk = hasAllKeys(params.limits, limitKeys);
   const featuresOk = hasAllKeys(params.features, featureKeys as string[]);
-  return limitsOk && featuresOk;
-};
-
-const buildPlanDefinition = (
-  planKey: PlanKey,
-  overrides: Partial<PlanDefinition>
-): PlanDefinition => {
-  const base = getPlan(planKey);
-  return {
-    ...base,
-    ...overrides,
-    limits: { ...base.limits, ...(overrides.limits ?? {}) },
-    features: { ...base.features, ...(overrides.features ?? {}) },
-  };
+  if (!limitsOk || !featuresOk) return false;
+  if ((params.planKey ?? "").toLowerCase() === "free") {
+    return true;
+  }
+  if (!params.stripePriceId) return false;
+  return true;
 };
 
 const mapDbPlanToDefinition = (plan: {
@@ -180,9 +246,9 @@ const mapDbPlanToDefinition = (plan: {
   limits: PlanLimits;
   features: PlanDefinition["features"];
 }): PlanDefinition | null => {
-  const planKey = normalizePlanKey(plan.key);
-  if (!planKey) return null;
-  return buildPlanDefinition(planKey, {
+  if (!plan.key) return null;
+  return normalizePlanDefinition({
+    key: plan.key,
     name: plan.name,
     priceMonthlyCents: plan.priceMonthlyCents,
     limits: plan.limits,
@@ -191,10 +257,7 @@ const mapDbPlanToDefinition = (plan: {
 };
 
 export const getBillingPlans = async (): Promise<PlanDefinition[]> => {
-  if (!features.billingEnabled) {
-    return Object.values(plans);
-  }
-
+  await ensureFreePlan();
   let storedPlans = await db.billingPlan.findMany({
     where: { active: true, configured: true },
     select: {
@@ -206,7 +269,7 @@ export const getBillingPlans = async (): Promise<PlanDefinition[]> => {
     },
   });
 
-  if (storedPlans.length === 0) {
+  if (storedPlans.length === 0 && features.billingEnabled) {
     await syncPlansFromStripe({ allowEmpty: true });
     storedPlans = await db.billingPlan.findMany({
       where: { active: true, configured: true },
@@ -223,13 +286,6 @@ export const getBillingPlans = async (): Promise<PlanDefinition[]> => {
   const mapped = storedPlans
     .map((plan) => mapDbPlanToDefinition(plan as any))
     .filter((plan): plan is PlanDefinition => !!plan);
-
-  const existingKeys = new Set(mapped.map((plan) => plan.key));
-  Object.values(plans).forEach((plan) => {
-    if (!existingKeys.has(plan.key)) {
-      mapped.push(plan);
-    }
-  });
 
   return mapped.sort((a, b) => {
     const aPrice = a.priceMonthlyCents ?? Number.MAX_SAFE_INTEGER;
@@ -308,6 +364,7 @@ export const syncPlansFromStripe = async (
     const configured =
       existing?.configured ||
       isPlanConfigured({
+        planKey: dbKey,
         stripePriceId: price?.id ?? existing?.stripePriceId ?? null,
         limits: limits as Record<string, unknown>,
         features: features as Record<string, unknown>,
@@ -338,16 +395,14 @@ export const syncPlansFromStripe = async (
       },
     });
 
-    const normalizedPlanKey = normalizePlanKey(dbKey);
-    if (normalizedPlanKey) {
-      const planDefinition = buildPlanDefinition(normalizedPlanKey, {
-        name,
-        priceMonthlyCents: effectivePrice,
-        limits: (limits as PlanLimits) ?? getPlan(normalizedPlanKey).limits,
-        features: (features as PlanDefinition["features"]) ?? getPlan(normalizedPlanKey).features,
-      });
-      syncedPlans.push(planDefinition);
-    }
+    const planDefinition = normalizePlanDefinition({
+      key: dbKey,
+      name,
+      priceMonthlyCents: effectivePrice,
+      limits: limits as PlanLimits,
+      features: features as PlanDefinition["features"],
+    });
+    syncedPlans.push(planDefinition);
   }
 
   if (!options.allowEmpty && syncedPlans.length === 0) {
@@ -358,35 +413,66 @@ export const syncPlansFromStripe = async (
 };
 
 const getPlanDefinitionByKey = async (planKey: PlanKey): Promise<PlanDefinition> => {
-  const storedPlan = await db.billingPlan.findUnique({
-    where: { key: planKey },
-    select: {
-      key: true,
-      name: true,
-      priceMonthlyCents: true,
-      limits: true,
-      features: true,
-    },
-  });
+  const findPlan = async () =>
+    db.billingPlan.findUnique({
+      where: { key: planKey },
+      select: {
+        key: true,
+        name: true,
+        priceMonthlyCents: true,
+        limits: true,
+        features: true,
+      },
+    });
+
+  if (String(planKey).toLowerCase() === "free") {
+    await ensureFreePlan();
+  }
+
+  let storedPlan = await findPlan();
+  if (!storedPlan && features.billingEnabled) {
+    await syncPlansFromStripe({ allowEmpty: true });
+    storedPlan = await findPlan();
+  }
 
   if (storedPlan) {
     const mapped = mapDbPlanToDefinition(storedPlan as any);
     if (mapped) return mapped;
   }
 
-  return getPlan(planKey);
+  const fallbackKey = await getDefaultPlanKey();
+  if (fallbackKey && fallbackKey !== planKey) {
+    const fallbackPlan = await db.billingPlan.findUnique({
+      where: { key: fallbackKey },
+      select: {
+        key: true,
+        name: true,
+        priceMonthlyCents: true,
+        limits: true,
+        features: true,
+      },
+    });
+    if (fallbackPlan) {
+      const mappedFallback = mapDbPlanToDefinition(fallbackPlan as any);
+      if (mappedFallback) return mappedFallback;
+    }
+  }
+
+  throw new Error(`Plan not found: ${planKey}`);
+};
+
+export const getPlanDefinition = async (planKey: PlanKey): Promise<PlanDefinition> => {
+  return getPlanDefinitionByKey(planKey);
 };
 
 const getEffectivePlan = async (organizationId: number): Promise<PlanDefinition> => {
-  if (!features.billingEnabled) {
-    return getPlan("enterprise");
-  }
   // Use Organization.plan as source of truth
   const organization = await db.organization.findUnique({
     where: { id: organizationId },
     select: { plan: true },
   });
-  return getPlanDefinitionByKey((organization?.plan ?? "free") as PlanKey);
+  const planKey = (organization?.plan ?? (await getDefaultPlanKey())) as PlanKey;
+  return getPlanDefinitionByKey(planKey);
 };
 
 const getMonthRange = () => {
@@ -536,12 +622,10 @@ export const getUsageSummary = async (organizationId: number) => {
 const getStripePriceId = async (plan: PlanKey) => {
   const storedPlan = await db.billingPlan.findUnique({
     where: { key: plan },
-    select: { stripePriceId: true },
+    select: { stripePriceId: true, active: true },
   });
-  if (storedPlan?.stripePriceId) return storedPlan.stripePriceId;
-  if (plan === "pro") return stripeConfig.pricePro;
-  if (plan === "enterprise") return stripeConfig.priceEnterprise;
-  return "";
+  if (!storedPlan?.active) return "";
+  return storedPlan.stripePriceId ?? "";
 };
 
 export const createCheckoutSession = async (organizationId: number, planKey: PlanKey) => {
@@ -608,7 +692,8 @@ export const handleStripeWebhook = async (event: Stripe.Event) => {
       const organizationId = Number(session.metadata?.organizationId);
       const stripeSubscriptionId = session.subscription as string | null;
       const stripeCustomerId = session.customer as string | null;
-      const newPlan = (session.metadata?.plan as PlanKey) ?? "pro";
+      const newPlan =
+        (session.metadata?.plan as PlanKey | undefined) ?? (await getDefaultPlanKey());
       if (organizationId && stripeSubscriptionId) {
         await db.subscription.upsert({
           where: { organizationId },
@@ -640,6 +725,7 @@ export const handleStripeWebhook = async (event: Stripe.Event) => {
       const stripeSubscriptionId = subscription.id;
       const isCanceled = subscription.status === "canceled" || event.type === "customer.subscription.deleted";
       const status = isCanceled ? "canceled" : subscription.status;
+      const fallbackPlan = isCanceled ? await getDefaultPlanKey() : undefined;
       const currentPeriodStart = subscription.current_period_start
         ? new Date(subscription.current_period_start * 1000)
         : null;
@@ -660,15 +746,15 @@ export const handleStripeWebhook = async (event: Stripe.Event) => {
           currentPeriodStart,
           currentPeriodEnd,
           cancelAtPeriodEnd,
-          ...(isCanceled ? { plan: "free" } : {}),
+          ...(isCanceled ? { plan: fallbackPlan } : {}),
         },
       });
 
-      // Revert Organization.plan to "free" if subscription is canceled
+      // Revert Organization.plan to default plan if subscription is canceled
       if (isCanceled && existingSub?.organizationId) {
         await db.organization.update({
           where: { id: existingSub.organizationId },
-          data: { plan: "free" },
+          data: { plan: fallbackPlan },
         });
       }
       break;

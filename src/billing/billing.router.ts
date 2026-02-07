@@ -1,6 +1,7 @@
 import express from "express";
 import type { Request, Response } from "express";
 import { token } from "../utils/token.server";
+import { db } from "../utils/db.server";
 import { tenantMiddleware } from "../utils/tenant.middleware";
 import { requireOrgRole, requireSystemAccess, USER_ACCESS_LEVEL } from "../utils/permissions";
 import { features } from "../utils/features";
@@ -63,8 +64,15 @@ billingRouter.post("/checkout", token.authMiddleware, tenantMiddleware, async (r
     if (!features.billingEnabled) {
       return response.status(400).json({ error: "Billing disabled" });
     }
-    const planKey = String(request.body.plan || "").toLowerCase() as PlanKey;
-    if (!["pro", "enterprise"].includes(planKey)) {
+    const planKey = String(request.body.plan || "").trim().toLowerCase() as PlanKey;
+    if (!planKey) {
+      return response.status(400).json({ error: "Plano inválido" });
+    }
+    const plan = await db.billingPlan.findUnique({
+      where: { key: planKey },
+      select: { active: true, stripePriceId: true },
+    });
+    if (!plan?.active || !plan.stripePriceId) {
       return response.status(400).json({ error: "Plano inválido" });
     }
     const organizationId = request.organizationId!;

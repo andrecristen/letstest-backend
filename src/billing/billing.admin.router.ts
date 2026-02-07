@@ -145,6 +145,7 @@ billingAdminRouter.patch("/billing/plans/:id", token.authMiddleware, async (requ
     const nextLimits = (data.limits ?? existing.limits) as Record<string, unknown>;
     const nextFeatures = (data.features ?? existing.features) as Record<string, unknown>;
     data.configured = isPlanConfigured({
+      planKey: existing.key,
       stripePriceId: existing.stripePriceId,
       limits: nextLimits,
       features: nextFeatures,
@@ -154,6 +155,78 @@ billingAdminRouter.patch("/billing/plans/:id", token.authMiddleware, async (requ
       where: { id },
       data,
     });
+    return response.status(200).json(updated);
+  } catch (error: any) {
+    return response.status(500).json({ error: error.message });
+  }
+});
+
+billingAdminRouter.get("/billing/subscriptions", token.authMiddleware, async (request: Request, response: Response) => {
+  // #swagger.tags = ['BillingAdmin']
+  // #swagger.description = 'Lista todas as assinaturas (admin).'
+  if (!requireSystemAccess(request, response)) return;
+  try {
+    const search = typeof request.query.search === "string" ? request.query.search.trim() : "";
+    const where = search
+      ? { organization: { name: { contains: search, mode: "insensitive" as const } } }
+      : {};
+    const subscriptions = await db.subscription.findMany({
+      where,
+      include: {
+        organization: {
+          select: { id: true, name: true, slug: true },
+        },
+      },
+      orderBy: { organization: { name: "asc" } },
+    });
+    return response.status(200).json(subscriptions);
+  } catch (error: any) {
+    return response.status(500).json({ error: error.message });
+  }
+});
+
+billingAdminRouter.patch("/billing/subscriptions/:id", token.authMiddleware, async (request: Request, response: Response) => {
+  // #swagger.tags = ['BillingAdmin']
+  // #swagger.description = 'Atualiza o plano de uma assinatura (admin).'
+  if (!requireSystemAccess(request, response)) return;
+  const id = Number(request.params.id);
+  if (!Number.isFinite(id)) {
+    return response.status(400).json({ error: "ID inválido" });
+  }
+
+  const plan = String(request.body.plan ?? "").trim().toLowerCase();
+  if (!plan) {
+    return response.status(400).json({ error: "Plano inválido" });
+  }
+
+  try {
+    const planExists = await db.billingPlan.findUnique({
+      where: { key: plan },
+      select: { id: true },
+    });
+    if (!planExists) {
+      return response.status(400).json({ error: "Plano inválido" });
+    }
+    const existing = await db.subscription.findUnique({ where: { id } });
+    if (!existing) {
+      return response.status(404).json({ error: "Assinatura não encontrada" });
+    }
+
+    const updated = await db.subscription.update({
+      where: { id },
+      data: { plan },
+      include: {
+        organization: {
+          select: { id: true, name: true, slug: true },
+        },
+      },
+    });
+
+    await db.organization.update({
+      where: { id: existing.organizationId },
+      data: { plan },
+    });
+
     return response.status(200).json(updated);
   } catch (error: any) {
     return response.status(500).json({ error: error.message });

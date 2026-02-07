@@ -11,8 +11,6 @@ export const stripe = new Stripe(stripeSecretKey ?? "", {
 });
 
 export const stripeConfig = {
-  pricePro: process.env.STRIPE_PRICE_PRO ?? "",
-  priceEnterprise: process.env.STRIPE_PRICE_ENTERPRISE ?? "",
   webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
   successUrl: process.env.STRIPE_SUCCESS_URL ?? "http://localhost:3000/billing/success",
   cancelUrl: process.env.STRIPE_CANCEL_URL ?? "http://localhost:3000/billing",
